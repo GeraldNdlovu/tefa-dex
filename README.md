@@ -1,69 +1,57 @@
-# TEFA DEX
+# Sample Hardhat 3 Beta Project (`mocha` and `ethers`)
 
-## 🌐 Overview
+This project showcases a Hardhat 3 Beta project using `mocha` for tests and the `ethers` library for Ethereum interactions.
 
-TEFA DEX is a multi-chain decentralized exchange protocol designed to unify fragmented DeFi liquidity across multiple blockchains. It enables seamless, low-slippage swaps across 500+ tokens using a universal routing system, cross-chain interoperability, and gasless transactions.
+To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
 
-## ⚡ Key Features
+## Project Overview
 
-* 🔀 Multi-chain swaps (Ethereum, Polygon, Arbitrum, Solana, more)
-* 🌉 Cross-chain bridge integration (lock & mint / burn & unlock)
-* ⛽ Gasless transactions (ERC-4337 account abstraction)
-* 🧠 Universal router for optimal trade execution
-* 💧 Advanced liquidity pools (AMM, concentrated, stable swap)
-* 🔒 Non-custodial and secure by design
+This example project includes:
 
-## 🏗️ Architecture
+- A simple Hardhat configuration file.
+- Foundry-compatible Solidity unit tests.
+- TypeScript integration tests using `mocha` and ethers.js
+- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
 
-* **User Layer**: Multi-chain wallets (MetaMask, Phantom)
-* **Frontend**: Web3 interface + analytics dashboard
-* **Smart Contracts**:
+## Usage
 
-  * Router (trade execution)
-  * Factory (pair creation)
-  * Liquidity Pools (AMM engine)
-  * Paymaster (gasless infra)
-* **Bridge Layer**: Cross-chain asset transfers
-* **Relayer Network**: Gasless transaction execution
+### Running Tests
 
-## 🛠️ Tech Stack
+To run all the tests in the project, execute the following command:
 
-* Solidity / Rust (Smart Contracts)
-* Hardhat / Foundry (Development)
-* React / Next.js (Frontend)
-* Ethers.js / Web3.js
-* Chainlink / The Graph (Oracles & Indexing)
+```shell
+npx hardhat test
+```
 
-## 📂 Project Structure
+You can also selectively run the Solidity or `mocha` tests:
 
-/contracts      → Smart contracts (core protocol)
+```shell
+npx hardhat test solidity
+npx hardhat test mocha
+```
 
-/frontend      → Web app
+### Make a deployment to Sepolia
 
-/relayer       → Gasless transaction service
+This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
 
-/scripts       → Deployment scripts
+To run the deployment to a local chain:
 
-/test          → Unit & integration tests
+```shell
+npx hardhat ignition deploy ignition/modules/Counter.ts
+```
 
-/docs          → Whitepaper & diagrams
+To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
 
-/security      → Threat model & audits
+You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
 
-## 🚧 Roadmap
+To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
 
-* [ ] Core smart contracts (Router, Factory, Pools)
-* [ ] Testnet deployment (Ethereum / Polygon)
-* [ ] Gasless transaction integration
-* [ ] Cross-chain bridge integration
-* [ ] Security audits
-* [ ] Mainnet launch
+```shell
+npx hardhat keystore set SEPOLIA_PRIVATE_KEY
+```
 
-## ⚠️ Disclaimer
+After setting the variable, you can run the deployment with the Sepolia network:
 
-This project is under active development. Do not use in production with real funds until audited.
-
-
-## 📜 License
-
-MIT
+```shell
+npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
+```
