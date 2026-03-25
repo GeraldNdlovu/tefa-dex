@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 contract Pool {
     address public token0;
     address public token1;
+    address public router;
 
     uint256 public reserve0;
     uint256 public reserve1;
@@ -13,7 +16,16 @@ contract Pool {
         token1 = _token1;
     }
 
+    function setRouter(address _router) external {
+        require(router == address(0), "Router already set");
+        router = _router;
+        // Pre-approve Router for unlimited output transfers
+        IERC20(token0).approve(router, type(uint256).max);
+        IERC20(token1).approve(router, type(uint256).max);
+    }
+
     function addLiquidity(uint256 amount0, uint256 amount1) external {
+        require(msg.sender == router, "Only router can call");
         reserve0 += amount0;
         reserve1 += amount1;
     }
@@ -34,6 +46,7 @@ contract Pool {
     }
 
     function swap(address tokenIn, uint256 amountIn) external returns (uint256 amountOut) {
+        require(msg.sender == router, "Only router can call");
         require(tokenIn == token0 || tokenIn == token1, "Invalid token");
 
         if (tokenIn == token0) {
