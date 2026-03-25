@@ -1,57 +1,42 @@
-# Sample Hardhat 3 Beta Project (`mocha` and `ethers`)
+# TEFA DEX
 
-This project showcases a Hardhat 3 Beta project using `mocha` for tests and the `ethers` library for Ethereum interactions.
+<div align="center">
+  <h1>TEFA DEX</h1>
+  <p><strong>Multi-Chain • Gasless • Universal Router</strong></p>
+  
+  <img src="https://via.placeholder.com/1200x300/4F46E5/FFFFFF?text=TEFA+DEX+-+Seamless+DeFi+Trading" alt="TEFA DEX Banner" width="100%" style="border-radius: 16px;" />
+  
+  <p>
+    Unifying fragmented liquidity across chains with <strong>zero-gas swaps</strong>, a beautiful interface, 
+    and a Universal Router that makes trading feel like a centralized exchange — while staying fully non-custodial.
+  </p>
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+  <a href="https://github.com/YOUR_USERNAME/tefa-dex">
+    <img src="https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github" alt="GitHub"/>
+  </a>
+  <a href="https://github.com/YOUR_USERNAME/tefa-dex/stargazers">
+    <img src="https://img.shields.io/github/stars/YOUR_USERNAME/tefa-dex?style=for-the-badge" alt="Stars"/>
+  </a>
+</div>
 
-## Project Overview
+---
 
-This example project includes:
+## ✨ Features
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using `mocha` and ethers.js
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+- **Universal Router** — Single entry point for swaps and liquidity
+- **Real AMM Pools** — 0.3% fee, proper ERC20 transfers, slippage protection
+- **Gasless Transactions** — Full EIP-2771 Trusted Forwarder support (meta-transactions)
+- **Beautiful Dark UI** — Uniswap-style React + Tailwind interface
+- **Multi-Token Ready** — Deploy any ERC20 (MockERC20 included with 1M supply)
+- **Modern Stack** — Hardhat 3, TypeScript, ethers v6, OpenZeppelin
+- **Production Foundations** — Events, access control, and audit-ready structure
 
-## Usage
+**Live on Local Testnet in < 60 seconds**
 
-### Running Tests
+---
 
-To run all the tests in the project, execute the following command:
+## 🚀 Quick Start
 
-```shell
-npx hardhat test
-```
-
-You can also selectively run the Solidity or `mocha` tests:
-
-```shell
-npx hardhat test solidity
-npx hardhat test mocha
-```
-
-### Make a deployment to Sepolia
-
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
-
-To run the deployment to a local chain:
-
-```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
-```
-
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
-
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
-
-```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
-```
-
-After setting the variable, you can run the deployment with the Sepolia network:
-
-```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
-```
+### 1. Start Local Blockchain
+```bash
+npx hardhat node
