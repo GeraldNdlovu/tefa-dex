@@ -1,6 +1,6 @@
-const { ethers } = await import("hardhat");
-
 async function main() {
+  const { ethers } = require("hardhat");
+  
   console.log("=== CHECKING DEX STATUS ===\n");
   
   // Your deployed addresses
@@ -30,6 +30,7 @@ async function main() {
     console.log("5. Pool reserves - TokenA:", ethers.formatEther(reserve0));
     console.log("6. Pool reserves - TokenB:", ethers.formatEther(reserve1));
     
+    // Check if pool has tokens
     const poolTKA = await tokenA.balanceOf(poolAddr);
     const poolTKB = await tokenB.balanceOf(poolAddr);
     console.log("7. Pool actual TKA:", ethers.formatEther(poolTKA));
@@ -40,6 +41,7 @@ async function main() {
     } else {
       console.log("\n✅ Pool has liquidity. Ready to swap!");
       
+      // Try a small swap
       const amountIn = ethers.parseEther("0.01");
       const allowance = await tokenA.allowance(deployer.address, routerAddr);
       console.log(`\n9. Router allowance: ${ethers.formatEther(allowance)} TKA`);

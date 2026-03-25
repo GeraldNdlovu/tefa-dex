@@ -1,4 +1,4 @@
-const { ethers } = await import("hardhat");
+import { ethers } from "hardhat";
 
 async function main() {
   console.log("=== CHECKING DEX STATUS ===\n");
@@ -8,6 +8,7 @@ async function main() {
   const tokenAAddr = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
   const tokenBAddr = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
   
+  console.log("Loading contracts...");
   const router = await ethers.getContractAt("Router", routerAddr);
   const tokenA = await ethers.getContractAt("MockERC20", tokenAAddr);
   const tokenB = await ethers.getContractAt("MockERC20", tokenBAddr);
@@ -37,6 +38,7 @@ async function main() {
     
     if (reserve0.toString() === "0") {
       console.log("\n⚠️ POOL IS EMPTY! Liquidity wasn't added.");
+      console.log("   You need to run deploy script with liquidity first.");
     } else {
       console.log("\n✅ Pool has liquidity. Ready to swap!");
       
@@ -54,10 +56,12 @@ async function main() {
       console.log("11. Attempting swap of 0.01 TKA...");
       try {
         const tx = await router.swap(tokenAAddr, tokenBAddr, amountIn);
-        await tx.wait();
+        const receipt = await tx.wait();
         console.log("   ✅ SWAP SUCCESSFUL!");
-      } catch (err) {
+        console.log("   Gas used:", receipt.gasUsed.toString());
+      } catch (err: any) {
         console.log("   ❌ Swap failed:", err.message);
+        if (err.data) console.log("   Revert data:", err.data);
       }
     }
   } else {

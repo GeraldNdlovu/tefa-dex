@@ -12,8 +12,10 @@ async function main() {
   console.log("✅ ethers loaded");
 
   const [deployer] = await ethers.getSigners();
+  console.log("📡 Deployer address:", await deployer.getAddress());
 
   // Deploy Forwarder
+  console.log("\n📦 Deploying TrustedForwarder...");
   const Forwarder = await ethers.getContractFactory("TrustedForwarder");
   const forwarder = await Forwarder.deploy();
   await forwarder.waitForDeployment();
@@ -21,6 +23,7 @@ async function main() {
   console.log("✅ TrustedForwarder:", forwarderAddr);
 
   // Deploy Tokens
+  console.log("\n📦 Deploying Tokens...");
   const Token = await ethers.getContractFactory("MockERC20");
   const tokenA = await Token.deploy("TokenA", "TKA", ethers.parseEther("1000000"));
   const tokenB = await Token.deploy("TokenB", "TKB", ethers.parseEther("1000000"));
@@ -32,6 +35,7 @@ async function main() {
   console.log("✅ TokenB:", tokenBAddr);
 
   // Deploy Router
+  console.log("\n📦 Deploying Router...");
   const Router = await ethers.getContractFactory("Router");
   const router = await Router.deploy(forwarderAddr);
   await router.waitForDeployment();
@@ -39,18 +43,27 @@ async function main() {
   console.log("✅ Router:", routerAddr);
 
   // Create Pool
+  console.log("\n📦 Creating Pool...");
   const tx = await router.createPool(tokenAAddr, tokenBAddr);
   await tx.wait();
   const poolAddr = await router.getPool(tokenAAddr, tokenBAddr);
   console.log("✅ Pool:", poolAddr);
 
-  // Approve Router
-  console.log("Approving Router to spend tokens...");
+  // Approve Router to spend tokens
+  console.log("\n💰 Approving Router to spend tokens...");
   await tokenA.approve(routerAddr, ethers.parseEther("10000"));
   await tokenB.approve(routerAddr, ethers.parseEther("10000"));
+  console.log("✅ Approvals complete");
 
-  // Add liquidity
-  await router.addLiquidity(tokenAAddr, tokenBAddr, ethers.parseEther("10000"), ethers.parseEther("10000"));
+  // Add initial liquidity
+  console.log("\n💧 Adding initial liquidity...");
+  await router.addLiquidity(
+    tokenAAddr,
+    tokenBAddr,
+    ethers.parseEther("10000"),
+    ethers.parseEther("10000")
+  );
+  console.log("✅ Liquidity added");
 
   // Check reserves
   const pool = await ethers.getContractAt("Pool", poolAddr);
@@ -83,20 +96,24 @@ export const CONTRACT_ADDRESSES = {
 
   fs.writeFileSync(configPath, configContent);
   console.log("\n✅ Frontend config automatically updated at:", configPath);
-  console.log("   Addresses written:");
-  console.log(`   ROUTER: ${routerAddr}`);
-  console.log(`   TOKEN_A: ${tokenAAddr}`);
-  console.log(`   TOKEN_B: ${tokenBAddr}`);
+  console.log("\n📋 Addresses written:");
+  console.log(`   ROUTER:    ${routerAddr}`);
+  console.log(`   TOKEN_A:   ${tokenAAddr}`);
+  console.log(`   TOKEN_B:   ${tokenBAddr}`);
   console.log(`   FORWARDER: ${forwarderAddr}`);
-  console.log(`   POOL: ${poolAddr}`);
+  console.log(`   POOL:      ${poolAddr}`);
 
   console.log("\n🎉 TEFA DEX deployed and seeded successfully!");
-  console.log("Router Address:", routerAddr);
-  console.log("TokenA:", tokenAAddr);
-  console.log("TokenB:", tokenBAddr);
+  console.log("\n📌 Copy these addresses if needed:");
+  console.log(`Router:    ${routerAddr}`);
+  console.log(`TokenA:    ${tokenAAddr}`);
+  console.log(`TokenB:    ${tokenBAddr}`);
+  console.log(`Forwarder: ${forwarderAddr}`);
+  console.log(`Pool:      ${poolAddr}`);
 }
 
 main().catch((error) => {
+  console.error("\n❌ Deployment failed!");
   console.error(error);
   process.exitCode = 1;
 });

@@ -1,0 +1,44 @@
+
+✅ ethers loaded
+📡 Deployer address: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+📦 Deploying TrustedForwarder...
+✅ TrustedForwarder: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+📦 Deploying Tokens...
+✅ TokenA: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+✅ TokenB: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+
+📦 Deploying Router...
+✅ Router: 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+
+📦 Creating Pool...
+✅ Pool: 0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81
+
+💰 Approving Router to spend tokens...
+✅ Approvals complete
+
+💧 Adding initial liquidity...
+✅ Liquidity added
+
+📊 Pool Reserves:
+TokenA in pool: 10000.0
+TokenB in pool: 10000.0
+
+✅ Frontend config automatically updated at: /root/tefa-dex/frontend/src/config/contracts.ts
+
+📋 Addresses written:
+   ROUTER:    0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+   TOKEN_A:   0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+   TOKEN_B:   0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+   FORWARDER: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+   POOL:      0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81
+
+🎉 TEFA DEX deployed and seeded successfully!
+
+📌 Copy these addresses if needed:
+Router:    0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+TokenA:    0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+TokenB:    0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+Forwarder: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Pool:      0xd8058efe0198ae9dD7D563e1b4938Dcbc86A1F81

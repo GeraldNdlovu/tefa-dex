@@ -34,18 +34,34 @@ contract Router is ERC2771Context {
         address pool = getPool[tokenA][tokenB];
         require(pool != address(0), "Pool not found");
         
+        // Transfer tokens from user to router
         IERC20(tokenA).transferFrom(_msgSender(), address(this), amountA);
         IERC20(tokenB).transferFrom(_msgSender(), address(this), amountB);
         
+        // Approve pool to spend router's tokens
         IERC20(tokenA).approve(pool, amountA);
         IERC20(tokenB).approve(pool, amountB);
         
+        // Pool transfers tokens from router to itself
         Pool(pool).addLiquidity(amountA, amountB);
+        
+        // Update reserves (handled inside pool)
     }
 
     function swap(address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256 amountOut) {
         address pool = getPool[tokenIn][tokenOut];
         require(pool != address(0), "Pool not found");
+        
+        // Transfer tokenIn from user to router
+        IERC20(tokenIn).transferFrom(_msgSender(), address(this), amountIn);
+        
+        // Approve pool to spend router's tokens
+        IERC20(tokenIn).approve(pool, amountIn);
+        
+        // Execute swap (pool transfers tokenIn from router, sends tokenOut to router)
         amountOut = Pool(pool).swap(tokenIn, amountIn);
+        
+        // Transfer tokenOut from router to user
+        IERC20(tokenOut).transfer(_msgSender(), amountOut);
     }
 }
