@@ -1,7 +1,6 @@
 # TEFA DEX
 
 <div align="center">
-  <h1>TEFA DEX</h1>
   <p><strong>Multi-Chain • Gasless • Universal Router</strong></p>
   
 
