@@ -35,7 +35,7 @@
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start!
 
 ### 1. Start Local Blockchain
 ```bash
