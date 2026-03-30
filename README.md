@@ -4,18 +4,18 @@
   <h1>TEFA DEX</h1>
   <p><strong>Multi-Chain • Gasless • Universal Router</strong></p>
   
-  <img src="https://via.placeholder.com/1200x300/4F46E5/FFFFFF?text=TEFA+DEX+-+Seamless+DeFi+Trading" alt="TEFA DEX Banner" width="100%" style="border-radius: 16px;" />
+
   
   <p>
     Unifying fragmented liquidity across chains with <strong>zero-gas swaps</strong>, a beautiful interface, 
     and a Universal Router that makes trading feel like a centralized exchange — while staying fully non-custodial.
   </p>
 
-  <a href="https://github.com/YOUR_USERNAME/tefa-dex">
+  <a href="https://github.com/GeraldNdlovu/tefa-dex">
     <img src="https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github" alt="GitHub"/>
   </a>
-  <a href="https://github.com/YOUR_USERNAME/tefa-dex/stargazers">
-    <img src="https://img.shields.io/github/stars/YOUR_USERNAME/tefa-dex?style=for-the-badge" alt="Stars"/>
+  <a href="https://github.com/GeraldNdlovu/tefa-dex/stargazers">
+    <img src="https://img.shields.io/github/stars/GeraldNdlovu/tefa-dex?style=for-the-badge" alt="Stars"/>
   </a>
 </div>
 
