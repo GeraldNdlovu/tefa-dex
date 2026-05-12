@@ -103,7 +103,4 @@ DAO setup
 📄 License
 MIT License - see LICENSE file
 
-📞 Contact
-GitHub: @GeraldNdlovu
-
-<div align="center"> <strong>Built with 🔥 by the TEFA Team</strong> </div> ```
+📞 Contat: dumizo@yahoo.com
