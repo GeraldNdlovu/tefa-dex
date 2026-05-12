@@ -55,3 +55,6 @@ logs/
 
 # OS files
 Thumbs.db
+node_modules/
+frontend/node_modules/
+relayer/node_modules/
