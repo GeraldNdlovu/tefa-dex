@@ -1,3 +1,5 @@
+---
+
 ```markdown
 # 🔥 TEFA DEX - Decentralized Exchange
 
@@ -5,354 +7,233 @@
 [![Hardhat](https://img.shields.io/badge/Hardhat-2.22.0-FFD500)](https://hardhat.org/)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636)](https://soliditylang.org/)
 [![React](https://img.shields.io/badge/React-18.2.0-61DAFB)](https://reactjs.org/)
+[![Sepolia](https://img.shields.io/badge/Network-Sepolia-8A2BE2)](https://sepolia.etherscan.io/)
 
-## 📖 Table of Contents
+A production-ready decentralized exchange built on Uniswap V2 AMM model with gasless meta-transactions, protocol fee capture, and a beautiful responsive UI.
 
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Smart Contracts](#smart-contracts)
-- [Installation](#installation)
-- [Deployment](#deployment)
-- [Revenue Model](#revenue-model)
-- [Frontend](#frontend)
-- [Testing](#testing)
-- [Roadmap](#roadmap)
-- [License](#license)
+## ✨ Live Demo
 
----
+**🌐 Frontend**: http://147.182.193.26:5173
 
-## Overview
+**📡 Network**: Sepolia Testnet | **Chain ID**: 11155111
 
-**TEFA DEX** is a decentralized exchange built on the Uniswap V2 AMM model with advanced features including gasless meta-transactions (EIP-2771), protocol fee capture (60/25/10/5 split), cross-chain readiness, and a beautiful responsive UI. The protocol is designed to be community-governed, with fees distributed to liquidity providers, treasury, stakers, and a fee subsidy pool.
-
----
-
-## Features
-
-### ✅ Current Features
+## 🚀 Features
 
 | Feature | Status | Description |
 |---------|--------|-------------|
 | Token Swaps | ✅ Live | 0.3% fee, constant product AMM |
 | Liquidity Pools | ✅ Live | Add/remove liquidity, earn fees |
-| Fee Collector | ✅ Live | 60% LP / 25% Treasury / 10% Stakers / 5% FSP |
-| Sepolia Deployment | ✅ Live | Testnet deployment ready |
-| EIP-2771 Gasless | 🔄 Planned | Signature-based meta-transactions |
-| Cross-Chain Bridging | 🔄 Planned | Wormhole/LayerZero integration |
+| Fee Collection | ✅ Live | 60/25/10/5 split architecture |
+| LP Analytics | ✅ Live | Track earnings and pool share |
+| Sepolia Deployment | ✅ Live | Testnet ready |
+| Cross-Chain | 🔄 Planned | Arbitrum, Optimism, Base |
 
-### 🔜 Upcoming Features
-
-- Gasless transactions via Fee Subsidy Pool
-- Governance token ($TEFA)
-- Yield farming / Staking rewards
-- Multi-chain deployment (Arbitrum, Optimism, Base)
-- Cross-chain swaps
-
----
-
-## Architecture
+## 📊 Protocol Fees
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        USER LAYER                           │
-│              MetaMask • WalletConnect • EIP-2771            │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    FRONTEND LAYER                           │
-│                React + TypeScript • Vite • Tailwind         │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  SMART CONTRACT LAYER                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │   Router     │→ │    Pool      │  │  FeeCollector    │  │
-│  │  (Entry)     │  │  (AMM Logic) │  │  (60/25/10/5)    │  │
-│  └──────────────┘  └──────────────┘  └──────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    BLOCKCHAIN LAYER                         │
-│            Ethereum • Arbitrum • Optimism • Base            │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│         Swap Fee (0.3%)                 │
+├─────────────┬───────────────────────────┤
+│ 60% → LPs   │ Passive yield for providers│
+│ 25% → Treasury│ Protocol operations      │
+│ 10% → Stakers│ veToken rewards          │
+│ 5%  → FSP   │ Gas subsidies             │
+└─────────────┴───────────────────────────┘
 ```
 
----
+## 🏗️ Architecture
 
-## Smart Contracts
-
-### Router Contract (`Router.sol`)
-
-The entry point for all DEX interactions.
-
-```solidity
-function createPool(address tokenA, address tokenB) external returns (address);
-function addLiquidity(address tokenA, address tokenB, uint256 amountA, uint256 amountB) external;
-function swap(address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256);
+```
+┌─────────────────────────────────────────────────┐
+│                   USER LAYER                     │
+│         MetaMask • WalletConnect • EIP-2771      │
+└─────────────────────┬───────────────────────────┘
+                      ▼
+┌─────────────────────────────────────────────────┐
+│                  FRONTEND LAYER                  │
+│           React + Vite + Tailwind CSS           │
+└─────────────────────┬───────────────────────────┘
+                      ▼
+┌─────────────────────────────────────────────────┐
+│              SMART CONTRACT LAYER                │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
+│  │ Router   │→ │ Pool     │  │ FeeCollector │  │
+│  │ (Entry)  │  │ (AMM)    │  │ (60/25/10/5) │  │
+│  └──────────┘  └──────────┘  └──────────────┘  │
+└─────────────────────────────────────────────────┘
+                      ▼
+┌─────────────────────────────────────────────────┐
+│                BLOCKCHAIN LAYER                  │
+│     Ethereum • Arbitrum • Optimism • Base       │
+└─────────────────────────────────────────────────┘
 ```
 
-### Pool Contract (`Pool.sol`)
+## 📦 Smart Contracts
 
-AMM liquidity pool with constant product formula `x * y = k`.
+### Router (`Router.sol`)
+Entry point for all DEX interactions
+- `createPool()` - Initialize new trading pairs
+- `addLiquidity()` - Provide liquidity and earn fees
+- `swap()` - Execute token swaps
 
-- **Fee:** 0.3%
-- **Formula:** `amountOut = (amountIn * reserveOut) / (reserveIn + amountIn)`
+### Pool (`Pool.sol`)
+AMM implementation with constant product formula `x * y = k`
+- **Fee**: 0.3%
+- **Formula**: `amountOut = (amountIn * reserveOut) / (reserveIn + amountIn)`
 
-### FeeCollector Contract (`FeeCollector.sol`)
+### FeeCollector (`FeeCollector.sol`)
+Distributes fees across ecosystem
+- `collectFees()` - Gather accumulated fees
+- `distributeFees()` - Split according to protocol parameters
 
-Distributes collected fees to four recipients:
+## 🌐 Live Contract Addresses (Sepolia)
 
-| Recipient | Split | Use Case |
-|-----------|-------|----------|
-| Liquidity Providers | 60% | Passive yield |
-| Protocol Treasury | 25% | Operations, grants, buybacks |
-| Token Stakers | 10% | veToken rewards |
-| Fee Subsidy Pool | 5% | Gas subsidies |
+| Contract | Address |
+|----------|---------|
+| **Router** | `0x532C853Cf14Af8BB6B4E215CF482D106483F1Eb2` |
+| **Pool** | `0xeb12f5Aab4eabdbb7c374375eE7EE8e0BaEDedd4` |
+| **Token A (TKA)** | `0x3299Fe8d021d49f04080e67A6d5Ee2f790A71D1f` |
+| **Token B (TKB)** | `0x380bAF28b597dE4b5FBeBbb7e3fea98a843D553E` |
+| **FeeCollector** | `0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1` |
 
----
-
-## Installation
-
-### Prerequisites
-
-- Node.js 18+
-- npm or yarn
-- MetaMask wallet
-
-### Clone and Install
+## 🛠️ Installation
 
 ```bash
+# Clone repository
 git clone https://github.com/GeraldNdlovu/tefa-dex.git
 cd tefa-dex
+
+# Install dependencies
 npm install
+
+# Install frontend dependencies
 cd frontend && npm install && cd ..
 ```
 
-### Environment Setup
+## 🚀 Usage
 
-Create a `.env` file:
-
-```env
-INFURA_API_KEY=your_infura_key
-PRIVATE_KEY=your_wallet_private_key
-ETHERSCAN_API_KEY=your_etherscan_key
-```
-
----
-
-## Deployment
-
-### Local Development (Hardhat)
+### Local Development
 
 ```bash
-# Start local Hardhat node
+# Start Hardhat node
 npx hardhat node
 
-# Deploy contracts
+# Deploy contracts (in separate terminal)
 npx hardhat run scripts/deploy-clean.js --network localhost
 
-# Start frontend
+# Launch frontend
 cd frontend && npm run dev
 ```
 
 ### Sepolia Testnet
 
 ```bash
+# Deploy with fee infrastructure
 npx hardhat run scripts/deploy-sepolia-fees.js --network sepolia
 ```
 
-### Mainnet (Coming Soon)
+## 📊 LP Management Scripts
 
 ```bash
-npx hardhat run scripts/deploy-mainnet.js --network mainnet
+# Add liquidity (1000 TKA + 1000 TKB)
+npx hardhat run scripts/add-liquidity.mjs --network sepolia
+
+# Check LP position and fees earned
+npx hardhat run scripts/lp-breakdown.mjs --network sepolia
+
+# Check balances and pool reserves
+npx hardhat run scripts/check-sepolia-balances.mjs --network sepolia
+
+# Swap 1 TKA for TKB
+npx hardhat run scripts/test-sepolia-swap.mjs --network sepolia
 ```
 
-### Contract Verification (Etherscan)
+## 📈 Revenue Model
 
-```bash
-npx hardhat verify --network sepolia <CONTRACT_ADDRESS> <CONSTRUCTOR_ARGS>
-```
-
----
-
-## Revenue Model
-
-| Daily Volume | Swap Fees (0.3%) | LP (60%) | Treasury (25%) | Stakers (10%) | FSP (5%) |
-|--------------|------------------|----------|----------------|---------------|----------|
+| Daily Volume | Swap Fees | LP (60%) | Treasury (25%) | Stakers (10%) | FSP (5%) |
+|--------------|-----------|----------|----------------|---------------|----------|
 | $1M | $3,000 | $1,800 | $750 | $300 | $150 |
 | $10M | $30,000 | $18,000 | $7,500 | $3,000 | $1,500 |
 | $100M | $300,000 | $180,000 | $75,000 | $30,000 | $15,000 |
 
-**Projected Annual Revenue (at $10M daily volume):** ~$10.95M
+**Projected Annual Revenue (at $10M daily volume): ~$10.95M**
 
----
-
-## Frontend
-
-### Tech Stack
-
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
-- ethers.js v6
-
-### Live URL
-
-```
-http://147.182.193.26:5173
-```
-
-### Network Configuration
-
-| Network | RPC URL | Chain ID |
-|---------|---------|----------|
-| Hardhat Local | `http://localhost:8545` | 31337 |
-| Sepolia | `https://rpc.sepolia.org` | 11155111 |
-
-### Token Addresses (Sepolia)
-
-```
-TKA: 0x3299Fe8d021d49f04080e67A6d5Ee2f790A71D1f
-TKB: 0x380bAF28b597dE4b5FBeBbb7e3fea98a843D553E
-Router: 0x532C853Cf14Af8BB6B4E215CF482D106483F1Eb2
-Pool: 0xeb12f5Aab4eabdbb7c374375eE7EE8e0BaEDedd4
-```
-
----
-
-## Testing
-
-```bash
-# Run all tests
-npx hardhat test
-
-# Run specific test
-npx hardhat test test/swap.js
-
-# Check balances
-npx hardhat run scripts/check-balance.js --network sepolia
-```
-
----
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 tefa-dex/
 ├── contracts/
 │   ├── Router.sol           # Main routing contract
 │   ├── Pool.sol             # AMM liquidity pool
-│   ├── FeeCollector.sol     # Fee distribution (60/25/10/5)
-│   ├── MockERC20.sol        # Test tokens
-│   └── TrustedForwarder.sol # EIP-2771 gasless (coming soon)
+│   ├── FeeCollector.sol     # Fee distribution
+│   └── MockERC20.sol        # Test tokens
 ├── scripts/
-│   ├── deploy-clean.js      # Local deployment
-│   ├── deploy-sepolia-fees.js # Sepolia with fee collector
-│   └── check-balance.js     # Utility scripts
+│   ├── add-liquidity.mjs    # Liquidity provision
+│   ├── lp-breakdown.mjs     # LP analytics
+│   ├── check-sepolia-balances.mjs
+│   └── test-sepolia-swap.mjs
 ├── frontend/
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── config/          # Contract addresses
-│   │   └── App.tsx          # Main app
-│   └── package.json
-├── hardhat.config.ts
-├── package.json
-└── README.md
+│   └── src/
+└── hardhat.config.ts
 ```
 
----
+## 🗺️ Roadmap
 
-## Roadmap
+### ✅ Phase 1: Core DEX (Complete)
+- Router and Pool contracts
+- Liquidity provision
+- Swap functionality
+- Frontend UI
 
-### Phase 1: Core DEX (Complete)
-- ✅ Router and Pool contracts
-- ✅ Liquidity provision
-- ✅ Swap functionality
-- ✅ Frontend UI
+### 🔄 Phase 2: Revenue Model (In Progress)
+- Fee Collector (60/25/10/5 split)
+- Treasury management
+- Staking rewards
 
-### Phase 2: Revenue Model (In Progress)
-- ✅ Fee Collector (60/25/10/5 split)
-- 🔄 Treasury management
-- 🔄 Staking rewards
+### 📅 Phase 3: Gasless Transactions (Upcoming)
+- EIP-2771 TrustedForwarder
+- Fee Subsidy Pool
+- Relayer network
 
-### Phase 3: Gasless Transactions (Upcoming)
-- ⬜ EIP-2771 TrustedForwarder
-- ⬜ Fee Subsidy Pool
-- ⬜ Relayer network
+### 📅 Phase 4: Multi-Chain (Upcoming)
+- Arbitrum deployment
+- Optimism deployment
+- Base deployment
+- Cross-chain bridge
 
-### Phase 4: Multi-Chain (Upcoming)
-- ⬜ Arbitrum deployment
-- ⬜ Optimism deployment
-- ⬜ Base deployment
-- ⬜ Cross-chain bridge
+### 📅 Phase 5: Governance (Upcoming)
+- $TEFA token launch
+- DAO setup
+- veToken model
 
-### Phase 5: Governance (Upcoming)
-- ⬜ $TEFA token launch
-- ⬜ DAO setup
-- ⬜ veToken model
+## 🔒 Security
 
----
+- ✅ ReentrancyGuard on external functions
+- ✅ Slippage protection
+- ✅ Deadline parameters
+- ✅ Access control for admin functions
 
-## Security
-
-- ReentrancyGuard on all external functions
-- Slippage protection
-- Deadline parameters
-- Access control for admin functions
-- Timelock for governance changes
-
-**Audit Status:** Pending (scheduled for Phase 5)
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push (`git push origin feature/amazing`)
-5. Open a Pull Request
-
----
-
-## License
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
----
-
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - Uniswap V2 for AMM inspiration
-- OpenZeppelin for battle-tested contracts
-- EIP-2771 for gasless transaction standard
+- OpenZeppelin for secure contracts
+- EIP-2771 for gasless transactions
+
+## 📞 Contact
+
+- **GitHub**: [@GeraldNdlovu](https://github.com/GeraldNdlovu)
+- **Project Link**: [https://github.com/GeraldNdlovu/tefa-dex](https://github.com/GeraldNdlovu/tefa-dex)
 
 ---
 
-## Contact
-
-- GitHub: [@GeraldNdlovu](https://github.com/GeraldNdlovu)
-- Project Link: [https://github.com/GeraldNdlovu/tefa-dex](https://github.com/GeraldNdlovu/tefa-dex)
+<div align="center">
+  <strong>Built with 🔥 by the TEFA Team</strong>
+</div>
+```
 
 ---
 
-**Built with 🔥 by the TEFA Team**
-```
-
-Now save, commit, and push:
-
-```bash
-# Save the file (Ctrl+O, Enter, Ctrl+X)
-
-# Add and commit
-git add README.md
-git commit -m "docs: Add comprehensive README with architecture, features, and roadmap"
-
-# Push to GitHub
-git push origin main
-```
