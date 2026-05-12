@@ -15,13 +15,13 @@ Swap tokens. Add liquidity. Earn fees. No middlemen.
 
 ## Quick Start
 
-` `bash
+` ` `bash
 git clone https://github.com/GeraldNdlovu/tefa-dex.git
 cd tefa-dex
 npm install
 cd frontend && npm install && cd ..
 npm run dev
-` `
+` ` `
 
 ---
 
