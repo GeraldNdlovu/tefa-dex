@@ -61,3 +61,8 @@ relayer/node_modules/
 node_modules/
 frontend/node_modules/
 relayer/node_modules/
+
+# Node modules (already ignored but ensure)
+node_modules/
+frontend/node_modules/
+relayer/node_modules/
