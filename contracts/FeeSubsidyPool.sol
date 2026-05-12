@@ -4,117 +4,91 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+interface IEligibilityOracle {
+    function isEligibleForSubsidy(address user) external view returns (bool);
+}
+
+interface IRelayerRegistry {
+    function isRelayer(address account) external view returns (bool);
+}
+
 contract FeeSubsidyPool is AccessControl, ReentrancyGuard {
-    bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
-    bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
+    address public relayerRegistry;
+    address public eligibilityOracle;
     
     uint256 public maxGasPerTx = 200000;
     uint256 public dailyWalletCap = 10;
-    uint256 public minTradeSize = 0.01 ether;
-    
-    // Pool health thresholds (in ETH)
-    uint256 public healthyThreshold = 5 ether;
-    uint256 public cautionThreshold = 1 ether;
-    uint256 public criticalThreshold = 0.1 ether;
-    
-    enum PoolState { Healthy, Caution, Critical, Depleted }
-    PoolState public currentState = PoolState.Healthy;
     
     mapping(bytes32 => bool) public claimedTransactions;
-    mapping(address => uint256) public walletDailyCount;
-    mapping(address => uint256) public lastResetDay;
+    mapping(address => uint256) public dailyTxCount;
+    mapping(address => uint256) public lastReset;
     
-    event SubsidyPaid(address indexed relayer, address indexed user, bytes32 txHash, uint256 gasUsed, uint256 amount);
-    event PoolStateUpdated(PoolState state, uint256 balance);
-    event ParametersUpdated(uint256 maxGasPerTx, uint256 dailyWalletCap);
-    event RelayerAdded(address indexed relayer);
-    event RelayerRemoved(address indexed relayer);
+    event SubsidyPaid(address indexed relayer, address indexed user, bytes32 indexed txHash, uint256 amount);
+    event PoolFunded(address indexed source, uint256 amount);
     
-    constructor() {
+    constructor(address _relayerRegistry, address _eligibilityOracle) {
+        require(_relayerRegistry != address(0), "Invalid registry");
+        require(_eligibilityOracle != address(0), "Invalid oracle");
+        
+        relayerRegistry = _relayerRegistry;
+        eligibilityOracle = _eligibilityOracle;
+        
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(GOVERNANCE_ROLE, msg.sender);
-    }
-    
-    receive() external payable {}
-    
-    function addRelayer(address relayer) external onlyRole(GOVERNANCE_ROLE) {
-        grantRole(RELAYER_ROLE, relayer);
-        emit RelayerAdded(relayer);
-    }
-    
-    function removeRelayer(address relayer) external onlyRole(GOVERNANCE_ROLE) {
-        revokeRole(RELAYER_ROLE, relayer);
-        emit RelayerRemoved(relayer);
     }
     
     function claimReimbursement(
         bytes32 txHash,
-        uint256 gasUsed,
         address user,
-        uint256 tradeValue
-    ) external payable nonReentrant onlyRole(RELAYER_ROLE) {
+        uint256 gasUsed,
+        uint256 gasPrice
+    ) external nonReentrant returns (uint256) {
+        // Check relayer is whitelisted
+        (bool success, bytes memory data) = relayerRegistry.staticcall(
+            abi.encodeWithSignature("isRelayer(address)", msg.sender)
+        );
+        require(success && data.length > 0 && abi.decode(data, (bool)), "Not relayer");
+        
         require(!claimedTransactions[txHash], "Already claimed");
-        require(gasUsed <= maxGasPerTx, "Gas cap exceeded");
-        require(tradeValue >= minTradeSize, "Trade too small");
-        require(currentState != PoolState.Depleted, "Circuit breaker active");
+        require(gasUsed <= maxGasPerTx, "Gas exceeds cap");
+        require(user != address(0), "Invalid user");
         
-        uint256 today = block.timestamp / 1 days;
-        if (lastResetDay[user] != today) {
-            lastResetDay[user] = today;
-            walletDailyCount[user] = 0;
-        }
-        require(walletDailyCount[user] < dailyWalletCap, "Daily cap reached");
-        walletDailyCount[user]++;
+        // Check eligibility
+        (success, data) = eligibilityOracle.staticcall(
+            abi.encodeWithSignature("isEligibleForSubsidy(address)", user)
+        );
+        require(success && data.length > 0 && abi.decode(data, (bool)), "Not eligible");
         
-        uint256 reimbursement = gasUsed * tx.gasprice;
-        uint256 maxReimbursement = address(this).balance;
-        if (reimbursement > maxReimbursement) {
-            reimbursement = maxReimbursement;
+        // Check daily cap
+        if (block.timestamp >= lastReset[user] + 1 days) {
+            dailyTxCount[user] = 0;
+            lastReset[user] = block.timestamp;
         }
+        require(dailyTxCount[user] < dailyWalletCap, "Daily cap reached");
+        
+        uint256 reimbursement = gasUsed * gasPrice;
+        require(reimbursement <= address(this).balance, "Insufficient pool balance");
         
         claimedTransactions[txHash] = true;
-        (bool sent, ) = msg.sender.call{value: reimbursement}("");
-        require(sent, "Transfer failed");
+        dailyTxCount[user]++;
         
-        emit SubsidyPaid(msg.sender, user, txHash, gasUsed, reimbursement);
-    }
-    
-    function updatePoolState() external {
-        uint256 balance = address(this).balance;
-        PoolState newState;
+        (bool transferSuccess, ) = msg.sender.call{value: reimbursement}("");
+        require(transferSuccess, "Transfer failed");
         
-        if (balance >= healthyThreshold) {
-            newState = PoolState.Healthy;
-        } else if (balance >= cautionThreshold) {
-            newState = PoolState.Caution;
-        } else if (balance >= criticalThreshold) {
-            newState = PoolState.Critical;
-        } else {
-            newState = PoolState.Depleted;
-        }
+        emit SubsidyPaid(msg.sender, user, txHash, reimbursement);
+        return reimbursement;
+    }
+    
+    function getEligibility(address user) external view returns (bool eligible, uint256 dailyLeft) {
+        (bool success, bytes memory data) = eligibilityOracle.staticcall(
+            abi.encodeWithSignature("isEligibleForSubsidy(address)", user)
+        );
+        eligible = success && data.length > 0 && abi.decode(data, (bool));
         
-        if (newState != currentState) {
-            currentState = newState;
-            emit PoolStateUpdated(currentState, balance);
-        }
+        uint256 used = dailyTxCount[user];
+        dailyLeft = dailyWalletCap > used ? dailyWalletCap - used : 0;
     }
     
-    function updateParams(
-        uint256 _maxGasPerTx,
-        uint256 _dailyWalletCap,
-        uint256 _minTradeSize
-    ) external onlyRole(GOVERNANCE_ROLE) {
-        maxGasPerTx = _maxGasPerTx;
-        dailyWalletCap = _dailyWalletCap;
-        minTradeSize = _minTradeSize;
-        emit ParametersUpdated(maxGasPerTx, dailyWalletCap);
-    }
-    
-    function getPoolBalance() external view returns (uint256) {
-        return address(this).balance;
-    }
-    
-    function getPoolState() external view returns (PoolState) {
-        return currentState;
+    receive() external payable {
+        emit PoolFunded(msg.sender, msg.value);
     }
 }
