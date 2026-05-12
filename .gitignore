@@ -1,20 +1,57 @@
-# Node modules
-/node_modules
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
 
-# Compilation output
-/dist
+# Hardhat artifacts and cache
+artifacts/
+cache/
+coverage/
+coverage.json
+typechain/
+typechain-types/
 
-# pnpm deploy output
-/bundle
+# Environment variables
+.env
+.env.local
+.env.*.local
 
-# Hardhat Build Artifacts
-/artifacts
+# Build outputs
+dist/
+build/
+out/
+frontend/dist/
+frontend/build/
 
-# Hardhat compilation (v2) support directory
-/cache
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
 
-# Typechain output
-/types
+# Hardhat files
+hardhat.log
+deploy-output.txt
+simple-deploy.txt
 
-# Hardhat coverage reports
-/coverage
+# Frontend specific
+frontend/node_modules/
+frontend/.env
+frontend/.env.local
+
+# Relayer
+relayer/node_modules/
+
+# Ignition deployments
+ignition/deployments/
+
+# Logs
+logs/
+*.log
+
+# OS files
+Thumbs.db
