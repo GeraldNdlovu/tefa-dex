@@ -1,0 +1,35 @@
+import { network } from "hardhat";
+
+async function main() {
+  const { ethers } = await network.connect();
+  
+  const tokenAAddr = "0x3299Fe8d021d49f04080e67A6d5Ee2f790A71D1f";
+  const tokenBAddr = "0x380bAF28b597dE4b5FBeBbb7e3fea98a843D553E";
+  const routerAddr = "0x532C853Cf14Af8BB6B4E215CF482D106483F1Eb2";
+  
+  const tokenA = await ethers.getContractAt("MockERC20", tokenAAddr);
+  const router = await ethers.getContractAt("Router", routerAddr);
+  const [deployer] = await ethers.getSigners();
+  
+  const beforeTKA = await tokenA.balanceOf(deployer.address);
+  console.log("TKA before:", ethers.formatEther(beforeTKA));
+  
+  const amountIn = ethers.parseEther("10");
+  
+  // Approve
+  console.log("Approving...");
+  const approve = await tokenA.approve(routerAddr, amountIn);
+  await approve.wait();
+  
+  // Swap
+  console.log("Swapping...");
+  const swap = await router.swap(tokenAAddr, tokenBAddr, amountIn);
+  await swap.wait();
+  console.log("Swap done!");
+  
+  const afterTKA = await tokenA.balanceOf(deployer.address);
+  console.log("TKA after:", ethers.formatEther(afterTKA));
+  console.log("TKA change:", ethers.formatEther(beforeTKA - afterTKA));
+}
+
+main().catch(console.error);

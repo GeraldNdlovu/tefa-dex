@@ -3,14 +3,20 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+interface IFeeCollector {
+    function distributeFees(address pool, address token, uint256 amount) external;
+}
+
 contract Pool {
     address public token0;
     address public token1;
     uint256 public reserve0;
     uint256 public reserve1;
-    uint256 public constant FEE = 3;
+    uint256 public constant FEE = 3; // 0.3%
+    address public feeCollector;
     
     event Swap(address indexed sender, address tokenIn, uint256 amountIn, uint256 amountOut);
+    event FeeCollectorUpdated(address indexed oldCollector, address indexed newCollector);
     
     constructor(address _token0, address _token1) {
         token0 = _token0;
@@ -18,6 +24,8 @@ contract Pool {
     }
     
     function addLiquidity(uint256 amount0, uint256 amount1) external {
+        IERC20(token0).transferFrom(msg.sender, address(this), amount0);
+        IERC20(token1).transferFrom(msg.sender, address(this), amount1);
         reserve0 += amount0;
         reserve1 += amount1;
     }
@@ -25,25 +33,51 @@ contract Pool {
     function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut) 
         public pure returns (uint256) 
     {
+        require(amountIn > 0, "Invalid input");
         uint256 amountInWithFee = amountIn * (1000 - FEE) / 1000;
-        return (amountInWithFee * reserveOut) / (reserveIn + amountInWithFee);
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn + amountInWithFee;
+        return numerator / denominator;
     }
     
     function swap(address tokenIn, uint256 amountIn) external returns (uint256 amountOut) {
         require(tokenIn == token0 || tokenIn == token1, "Invalid token");
         
+        uint256 fee = amountIn * FEE / 1000;
+        uint256 amountInAfterFee = amountIn - fee;
+        
+        // Transfer tokens from user to pool (handled by router, not here)
+        // The router already transferred tokens, so we just update reserves
+        
         if (tokenIn == token0) {
-            amountOut = getAmountOut(amountIn, reserve0, reserve1);
+            amountOut = getAmountOut(amountInAfterFee, reserve0, reserve1);
             reserve0 += amountIn;
             reserve1 -= amountOut;
             IERC20(token1).transfer(msg.sender, amountOut);
         } else {
-            amountOut = getAmountOut(amountIn, reserve1, reserve0);
+            amountOut = getAmountOut(amountInAfterFee, reserve1, reserve0);
             reserve1 += amountIn;
             reserve0 -= amountOut;
             IERC20(token0).transfer(msg.sender, amountOut);
         }
         
+        // Send fee to FeeCollector if set
+        if (fee > 0 && feeCollector != address(0)) {
+            IERC20(tokenIn).approve(feeCollector, fee);
+            IFeeCollector(feeCollector).distributeFees(address(this), tokenIn, fee);
+        }
+        
         emit Swap(msg.sender, tokenIn, amountIn, amountOut);
+    }
+    
+    function getReserves() external view returns (uint256, uint256) {
+        return (reserve0, reserve1);
+    }
+    
+    function setFeeCollector(address _feeCollector) external {
+        require(msg.sender == address(this) || msg.sender == address(0), "Unauthorized");
+        address oldCollector = feeCollector;
+        feeCollector = _feeCollector;
+        emit FeeCollectorUpdated(oldCollector, _feeCollector);
     }
 }
