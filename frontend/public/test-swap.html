@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TEFA DEX Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a2e; color: white; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; background: purple; color: white; border: none; border-radius: 5px; }
+        pre { background: #0f0f0f; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        input { padding: 8px; margin: 5px; background: #333; color: white; border: 1px solid purple; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>TEFA DEX - Direct Test</h1>
+    <div>
+        <button id="connectBtn">Connect MetaMask</button>
+        <button id="swapBtn" disabled>Swap 10 TKA for TKB</button>
+    </div>
+    <div id="status"></div>
+    <pre id="log"></pre>
+
+    <script>
+        // New working contract addresses
+        const ROUTER_ADDRESS = "0x9Fcca440F19c62CDF7f973eB6DDF218B15d4C71D";
+        const TOKEN_A_ADDRESS = "0xAe120F0df055428E45b264E7794A18c54a2a3fAF";
+        const TOKEN_B_ADDRESS = "0x193521C8934bCF3473453AF4321911E7A89E0E12";
+
+        // Minimal ABI for MockERC20 (OpenZeppelin ERC20)
+        const TOKEN_ABI = [
+            "function name() view returns (string)",
+            "function symbol() view returns (string)",
+            "function decimals() view returns (uint8)",
+            "function totalSupply() view returns (uint256)",
+            "function balanceOf(address) view returns (uint256)",
+            "function transfer(address, uint256) returns (bool)",
+            "function approve(address, uint256) returns (bool)",
+            "function allowance(address, address) view returns (uint256)"
+        ];
+
+        const ROUTER_ABI = [
+            "function swap(address tokenIn, address tokenOut, uint256 amountIn) returns (uint256)",
+            "function addLiquidity(address tokenA, address tokenB, uint256 amountA, uint256 amountB) external",
+            "function getPool(address tokenA, address tokenB) view returns (address)"
+        ];
+
+        let signer = null;
+        let router = null;
+        let tokenA = null;
+        let provider = null;
+
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        document.getElementById('connectBtn').onclick = async () => {
+            try {
+                if (!window.ethereum) throw new Error("MetaMask not installed");
+                
+                provider = new ethers.BrowserProvider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = await provider.getSigner();
+                const address = await signer.getAddress();
+                
+                // Get network
+                const network = await provider.getNetwork();
+                log(`Network: chainId=${network.chainId}`);
+                
+                // Create contracts
+                router = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, signer);
+                tokenA = new ethers.Contract(TOKEN_A_ADDRESS, TOKEN_ABI, signer);
+                const tokenB = new ethers.Contract(TOKEN_B_ADDRESS, TOKEN_ABI, signer);
+                
+                // Get token info
+                const nameA = await tokenA.name();
+                const symbolA = await tokenA.symbol();
+                const balance = await tokenA.balanceOf(address);
+                const balanceB = await tokenB.balanceOf(address);
+                
+                log(`✅ Connected: ${address}`);
+                log(`TokenA: ${nameA} (${symbolA})`);
+                log(`TKA Balance: ${ethers.formatEther(balance)}`);
+                log(`TKB Balance: ${ethers.formatEther(balanceB)}`);
+                
+                // Check pool
+                const poolAddr = await router.getPool(TOKEN_A_ADDRESS, TOKEN_B_ADDRESS);
+                log(`Pool address: ${poolAddr}`);
+                
+                document.getElementById('swapBtn').disabled = false;
+                document.getElementById('connectBtn').disabled = true;
+            } catch (error) {
+                log(`❌ Connection error: ${error.message}`);
+                console.error(error);
+            }
+        };
+
+        document.getElementById('swapBtn').onclick = async () => {
+            if (!signer) return;
+            
+            try {
+                const address = await signer.getAddress();
+                const amountIn = ethers.parseEther("10");
+                
+                log("\n--- Starting Swap ---");
+                
+                // Check balance
+                const balance = await tokenA.balanceOf(address);
+                log(`TKA Balance: ${ethers.formatEther(balance)}`);
+                
+                if (balance < amountIn) {
+                    log(`❌ Insufficient balance: ${ethers.formatEther(balance)} TKA`);
+                    return;
+                }
+                
+                // Check allowance
+                let allowance = await tokenA.allowance(address, ROUTER_ADDRESS);
+                log(`Current allowance: ${ethers.formatEther(allowance)}`);
+                
+                if (allowance < amountIn) {
+                    log("Approving Router...");
+                    const approveTx = await tokenA.approve(ROUTER_ADDRESS, ethers.parseEther("1000"));
+                    await approveTx.wait();
+                    log("✅ Approved!");
+                    allowance = await tokenA.allowance(address, ROUTER_ADDRESS);
+                    log(`New allowance: ${ethers.formatEther(allowance)}`);
+                }
+                
+                // Swap
+                log("Swapping 10 TKA for TKB...");
+                const swapTx = await router.swap(TOKEN_A_ADDRESS, TOKEN_B_ADDRESS, amountIn);
+                log(`Transaction sent: ${swapTx.hash}`);
+                await swapTx.wait();
+                log("✅ Swap successful!");
+                
+                const newBalance = await tokenA.balanceOf(address);
+                log(`New TKA Balance: ${ethers.formatEther(newBalance)}`);
+                
+            } catch (error) {
+                log(`❌ Swap failed: ${error.message}`);
+                if (error.data) log(`Data: ${error.data}`);
+                if (error.reason) log(`Reason: ${error.reason}`);
+                console.error(error);
+            }
+        };
+    </script>
+</body>
+</html>

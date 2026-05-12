@@ -3,27 +3,52 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 
-// Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
   const { ethers } = await network.connect();
-  console.log("✅ ethers loaded");
+  console.log("========================================");
+  console.log("🚀 TEFA DEX - FULL DEPLOYMENT");
+  console.log("========================================\n");
 
   const [deployer] = await ethers.getSigners();
-  console.log("📡 Deployer address:", await deployer.getAddress());
+  console.log(`📡 Deployer: ${deployer.address}`);
+  console.log(`💰 Balance: ${ethers.formatEther(await deployer.provider.getBalance(deployer.address))} ETH\n`);
 
-  // Deploy Forwarder
-  console.log("\n📦 Deploying TrustedForwarder...");
+  // ========== PHASE 1: Fee Infrastructure ==========
+  console.log("📦 PHASE 1: Deploying Fee Infrastructure...");
+
+  const FeeSubsidyPool = await ethers.getContractFactory("FeeSubsidyPool");
+  const feeSubsidyPool = await FeeSubsidyPool.deploy();
+  await feeSubsidyPool.waitForDeployment();
+  const fspAddr = await feeSubsidyPool.getAddress();
+  console.log(`   ✅ FeeSubsidyPool: ${fspAddr}`);
+
+  const Treasury = await ethers.getContractFactory("Treasury");
+  const treasury = await Treasury.deploy(fspAddr);
+  await treasury.waitForDeployment();
+  const treasuryAddr = await treasury.getAddress();
+  console.log(`   ✅ Treasury: ${treasuryAddr}`);
+
+  const FeeCollector = await ethers.getContractFactory("FeeCollector");
+  const feeCollector = await FeeCollector.deploy(treasuryAddr, deployer.address, fspAddr);
+  await feeCollector.waitForDeployment();
+  const feeCollectorAddr = await feeCollector.getAddress();
+  console.log(`   ✅ FeeCollector: ${feeCollectorAddr}`);
+
+  // ========== PHASE 2: Forwarder (EIP-2771) ==========
+  console.log("\n📦 PHASE 2: Deploying Forwarder...");
+
   const Forwarder = await ethers.getContractFactory("TrustedForwarder");
   const forwarder = await Forwarder.deploy();
   await forwarder.waitForDeployment();
   const forwarderAddr = await forwarder.getAddress();
-  console.log("✅ TrustedForwarder:", forwarderAddr);
+  console.log(`   ✅ TrustedForwarder: ${forwarderAddr}`);
 
-  // Deploy Tokens
-  console.log("\n📦 Deploying Tokens...");
+  // ========== PHASE 3: Tokens ==========
+  console.log("\n📦 PHASE 3: Deploying Tokens...");
+
   const Token = await ethers.getContractFactory("MockERC20");
   const tokenA = await Token.deploy("TokenA", "TKA", ethers.parseEther("1000000"));
   const tokenB = await Token.deploy("TokenB", "TKB", ethers.parseEther("1000000"));
@@ -31,54 +56,72 @@ async function main() {
   await tokenB.waitForDeployment();
   const tokenAAddr = await tokenA.getAddress();
   const tokenBAddr = await tokenB.getAddress();
-  console.log("✅ TokenA:", tokenAAddr);
-  console.log("✅ TokenB:", tokenBAddr);
+  console.log(`   ✅ TokenA (TKA): ${tokenAAddr}`);
+  console.log(`   ✅ TokenB (TKB): ${tokenBAddr}`);
 
-  // Deploy Router
-  console.log("\n📦 Deploying Router...");
+  // ========== PHASE 4: Router ==========
+  console.log("\n📦 PHASE 4: Deploying Router...");
+
   const Router = await ethers.getContractFactory("Router");
   const router = await Router.deploy(forwarderAddr);
   await router.waitForDeployment();
   const routerAddr = await router.getAddress();
-  console.log("✅ Router:", routerAddr);
+  console.log(`   ✅ Router: ${routerAddr}`);
+  
+  // Set FeeCollector on Router
+  await router.setFeeCollector(feeCollectorAddr);
+  console.log(`   ✅ FeeCollector set on Router`);
 
-  // Create Pool
-  console.log("\n📦 Creating Pool...");
-  const tx = await router.createPool(tokenAAddr, tokenBAddr);
-  await tx.wait();
+  // ========== PHASE 5: Pool ==========
+  console.log("\n📦 PHASE 5: Creating Pool...");
+
+  await router.createPool(tokenAAddr, tokenBAddr);
   const poolAddr = await router.getPool(tokenAAddr, tokenBAddr);
-  console.log("✅ Pool:", poolAddr);
+  console.log(`   ✅ Pool: ${poolAddr}`);
 
-  // Approve Router to spend tokens
-  console.log("\n💰 Approving Router to spend tokens...");
+  // ========== PHASE 6: Grant Roles ==========
+  console.log("\n🔧 PHASE 6: Granting Roles...");
+
+  const POOL_ROLE = await feeCollector.POOL_ROLE();
+  await feeCollector.grantRole(POOL_ROLE, poolAddr);
+  console.log(`   ✅ Granted POOL_ROLE to Pool`);
+
+  const RELAYER_ROLE = await feeSubsidyPool.RELAYER_ROLE();
+  await feeSubsidyPool.grantRole(RELAYER_ROLE, deployer.address);
+  console.log(`   ✅ Granted RELAYER_ROLE to deployer`);
+
+  // ========== PHASE 7: Approve Router ==========
+  console.log("\n💰 PHASE 7: Approving Router...");
+
   await tokenA.approve(routerAddr, ethers.parseEther("10000"));
   await tokenB.approve(routerAddr, ethers.parseEther("10000"));
-  console.log("✅ Approvals complete");
+  console.log(`   ✅ Router approved`);
 
-  // Add initial liquidity
-  console.log("\n💧 Adding initial liquidity...");
-  await router.addLiquidity(
-    tokenAAddr,
-    tokenBAddr,
-    ethers.parseEther("10000"),
-    ethers.parseEther("10000")
-  );
-  console.log("✅ Liquidity added");
+  // ========== PHASE 8: Add Liquidity ==========
+  console.log("\n💧 PHASE 8: Adding Liquidity...");
 
-  // Check reserves
+  await router.addLiquidity(tokenAAddr, tokenBAddr, ethers.parseEther("10000"), ethers.parseEther("10000"));
+  console.log(`   ✅ Liquidity added`);
+
+  // ========== PHASE 9: Seed FSP ==========
+  console.log("\n💸 PHASE 9: Seeding FeeSubsidyPool...");
+
+  await deployer.sendTransaction({
+    to: fspAddr,
+    value: ethers.parseEther("10")
+  });
+  console.log(`   ✅ FSP seeded with 10 ETH`);
+
+  // ========== PHASE 10: Check Reserves ==========
   const pool = await ethers.getContractAt("Pool", poolAddr);
   const reserve0 = await pool.reserve0();
   const reserve1 = await pool.reserve1();
-  console.log("\n📊 Pool Reserves:");
-  console.log("TokenA in pool:", ethers.formatEther(reserve0));
-  console.log("TokenB in pool:", ethers.formatEther(reserve1));
+  console.log(`\n📊 Pool Reserves:`);
+  console.log(`   TKA: ${ethers.formatEther(reserve0)}`);
+  console.log(`   TKB: ${ethers.formatEther(reserve1)}`);
 
-  // =============================================
-  // 🚀 AUTO-UPDATE FRONTEND CONFIG
-  // =============================================
+  // ========== PHASE 11: Frontend Config ==========
   const configPath = path.join(__dirname, "../frontend/src/config/contracts.ts");
-  
-  // Ensure directory exists
   const configDir = path.dirname(configPath);
   if (!fs.existsSync(configDir)) {
     fs.mkdirSync(configDir, { recursive: true });
@@ -91,25 +134,39 @@ export const CONTRACT_ADDRESSES = {
   TOKEN_A: "${tokenAAddr}",
   TOKEN_B: "${tokenBAddr}",
   FORWARDER: "${forwarderAddr}",
-  POOL: "${poolAddr}"
+  POOL: "${poolAddr}",
+  TREASURY: "${treasuryAddr}",
+  FEE_COLLECTOR: "${feeCollectorAddr}",
+  FEE_SUBSIDY_POOL: "${fspAddr}"
 };`;
 
   fs.writeFileSync(configPath, configContent);
-  console.log("\n✅ Frontend config automatically updated at:", configPath);
-  console.log("\n📋 Addresses written:");
-  console.log(`   ROUTER:    ${routerAddr}`);
-  console.log(`   TOKEN_A:   ${tokenAAddr}`);
-  console.log(`   TOKEN_B:   ${tokenBAddr}`);
-  console.log(`   FORWARDER: ${forwarderAddr}`);
-  console.log(`   POOL:      ${poolAddr}`);
+  console.log("\n✅ Frontend config automatically updated!");
 
-  console.log("\n🎉 TEFA DEX deployed and seeded successfully!");
-  console.log("\n📌 Copy these addresses if needed:");
-  console.log(`Router:    ${routerAddr}`);
-  console.log(`TokenA:    ${tokenAAddr}`);
-  console.log(`TokenB:    ${tokenBAddr}`);
-  console.log(`Forwarder: ${forwarderAddr}`);
-  console.log(`Pool:      ${poolAddr}`);
+  // ========== SUMMARY ==========
+  console.log("\n========================================");
+  console.log("🎉 TEFA DEX - DEPLOYMENT COMPLETE!");
+  console.log("========================================");
+  console.log(`\n📌 Contract Addresses:`);
+  console.log(`   Router:           ${routerAddr}`);
+  console.log(`   Pool:             ${poolAddr}`);
+  console.log(`   TokenA (TKA):     ${tokenAAddr}`);
+  console.log(`   TokenB (TKB):     ${tokenBAddr}`);
+  console.log(`   Forwarder:        ${forwarderAddr}`);
+  console.log(`   Treasury:         ${treasuryAddr}`);
+  console.log(`   FeeCollector:     ${feeCollectorAddr}`);
+  console.log(`   FeeSubsidyPool:   ${fspAddr}`);
+  
+  const split = await feeCollector.getSplit();
+  console.log(`\n📊 Fee Split:`);
+  console.log(`   LP:       ${Number(split[0]) / 100}%`);
+  console.log(`   Treasury: ${Number(split[1]) / 100}%`);
+  console.log(`   Stakers:  ${Number(split[2]) / 100}%`);
+  console.log(`   FSP:      ${Number(split[3]) / 100}%`);
+  
+  const fspBalance = await deployer.provider.getBalance(fspAddr);
+  console.log(`\n💾 FSP Balance: ${ethers.formatEther(fspBalance)} ETH`);
+  console.log("\n========================================\n");
 }
 
 main().catch((error) => {

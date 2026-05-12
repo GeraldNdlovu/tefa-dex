@@ -14,12 +14,12 @@
     "console": "npx hardhat console --network localhost"
   },
   "dependencies": {
-    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0",
-    "@openzeppelin/contracts": "^5.0.0"
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.0.10",
     "@nomicfoundation/hardhat-verify": "^3.0.16",
+    "@openzeppelin/contracts": "^4.9.6",
     "@types/node": "^20.0.0",
     "dotenv": "^17.4.2",
     "ethers": "^6.16.0",
