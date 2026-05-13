@@ -20,8 +20,10 @@ getContractFactory(name: 'IFeeCollector', signerOrOptions?: ethers.Signer | Fact
 getContractFactory(name: 'Pool', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.Pool__factory>
 getContractFactory(name: 'RelayerRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.RelayerRegistry__factory>
 getContractFactory(name: 'Router', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.Router__factory>
+getContractFactory(name: 'SenderTester', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SenderTester__factory>
 getContractFactory(name: 'SimplePool', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SimplePool__factory>
 getContractFactory(name: 'SimpleRouter', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SimpleRouter__factory>
+getContractFactory(name: 'TestReceiver', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TestReceiver__factory>
 getContractFactory(name: 'Treasury', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.Treasury__factory>
 getContractFactory(name: 'TrustedForwarder', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TrustedForwarder__factory>
 
@@ -35,8 +37,10 @@ getContractAt(name: 'IFeeCollector', address: string | ethers.Addressable, signe
 getContractAt(name: 'Pool', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.Pool>
 getContractAt(name: 'RelayerRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.RelayerRegistry>
 getContractAt(name: 'Router', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.Router>
+getContractAt(name: 'SenderTester', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SenderTester>
 getContractAt(name: 'SimplePool', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SimplePool>
 getContractAt(name: 'SimpleRouter', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SimpleRouter>
+getContractAt(name: 'TestReceiver', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TestReceiver>
 getContractAt(name: 'Treasury', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.Treasury>
 getContractAt(name: 'TrustedForwarder', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TrustedForwarder>
 
@@ -50,8 +54,10 @@ deployContract(name: 'IFeeCollector', signerOrOptions?: ethers.Signer | DeployCo
 deployContract(name: 'Pool', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Pool>
 deployContract(name: 'RelayerRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.RelayerRegistry>
 deployContract(name: 'Router', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Router>
+deployContract(name: 'SenderTester', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SenderTester>
 deployContract(name: 'SimplePool', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SimplePool>
 deployContract(name: 'SimpleRouter', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SimpleRouter>
+deployContract(name: 'TestReceiver', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TestReceiver>
 deployContract(name: 'Treasury', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Treasury>
 deployContract(name: 'TrustedForwarder', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TrustedForwarder>
 
@@ -65,8 +71,10 @@ deployContract(name: 'IFeeCollector', args: any[], signerOrOptions?: ethers.Sign
 deployContract(name: 'Pool', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Pool>
 deployContract(name: 'RelayerRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.RelayerRegistry>
 deployContract(name: 'Router', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Router>
+deployContract(name: 'SenderTester', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SenderTester>
 deployContract(name: 'SimplePool', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SimplePool>
 deployContract(name: 'SimpleRouter', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SimpleRouter>
+deployContract(name: 'TestReceiver', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TestReceiver>
 deployContract(name: 'Treasury', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Treasury>
 deployContract(name: 'TrustedForwarder', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TrustedForwarder>
 

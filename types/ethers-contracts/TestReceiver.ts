@@ -2,27 +2,31 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, ContractRunner, ContractMethod, Listener } from "ethers"
-import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../common.js"
+import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "./common.js"
   
 
-  export interface IFeeSubsidyPoolInterface extends Interface {
-    getFunction(nameOrSignature: "fundPool"): FunctionFragment;
+  export interface TestReceiverInterface extends Interface {
+    getFunction(nameOrSignature: "getValue" | "setValue" | "value"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'fundPool', values: [BigNumberish]): string;
+    encodeFunctionData(functionFragment: 'getValue', values?: undefined): string;
+encodeFunctionData(functionFragment: 'setValue', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'value', values?: undefined): string;
 
-    decodeFunctionResult(functionFragment: 'fundPool', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'getValue', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setValue', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'value', data: BytesLike): Result;
   }
 
   
 
-  export interface IFeeSubsidyPool extends BaseContract {
+  export interface TestReceiver extends BaseContract {
     
-    connect(runner?: ContractRunner | null): IFeeSubsidyPool;
+    connect(runner?: ContractRunner | null): TestReceiver;
     waitForDeployment(): Promise<this>;
 
-    interface: IFeeSubsidyPoolInterface;
+    interface: TestReceiverInterface;
 
     
   queryFilter<TCEvent extends TypedContractEvent>(
@@ -51,20 +55,46 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
 
     
     
-    fundPool: TypedContractMethod<
-      [amount: BigNumberish, ],
+    getValue: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    setValue: TypedContractMethod<
+      [newValue: BigNumberish, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    value: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
     >
     
 
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'fundPool'): TypedContractMethod<
-      [amount: BigNumberish, ],
+    getFunction(nameOrSignature: 'getValue'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'setValue'): TypedContractMethod<
+      [newValue: BigNumberish, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'value'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
     >;
 
     
