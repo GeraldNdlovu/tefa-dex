@@ -13,14 +13,6 @@ contract Router is ERC2771Context {
     
     constructor(address trustedForwarder) ERC2771Context(trustedForwarder) {}
     
-    function _msgSender() internal view virtual override returns (address) {
-        return ERC2771Context._msgSender();
-    }
-    
-    function _msgData() internal view virtual override returns (bytes calldata) {
-        return ERC2771Context._msgData();
-    }
-    
     function createPool(address tokenA, address tokenB) external returns (address pool) {
         require(getPool[tokenA][tokenB] == address(0), "Pool exists");
         pool = address(new Pool(tokenA, tokenB));
@@ -29,7 +21,6 @@ contract Router is ERC2771Context {
         emit PoolCreated(tokenA, tokenB, pool);
     }
     
-    // NEW: Register an existing pool
     function registerPool(address tokenA, address tokenB, address pool) external {
         require(getPool[tokenA][tokenB] == address(0), "Pool already registered");
         require(pool != address(0), "Invalid pool address");
@@ -55,9 +46,11 @@ contract Router is ERC2771Context {
         address pool = getPool[tokenIn][tokenOut];
         require(pool != address(0), "Pool not found");
         
-        IERC20(tokenIn).transferFrom(_msgSender(), address(this), amountIn);
+        address sender = _msgSender();
+        
+        IERC20(tokenIn).transferFrom(sender, address(this), amountIn);
         IERC20(tokenIn).approve(pool, amountIn);
         amountOut = Pool(pool).swap(tokenIn, amountIn);
-        IERC20(tokenOut).transfer(_msgSender(), amountOut);
+        IERC20(tokenOut).transfer(sender, amountOut);
     }
 }

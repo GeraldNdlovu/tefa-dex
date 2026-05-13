@@ -43,18 +43,25 @@ contract TrustedForwarder {
             ))
         ));
         
-        address signer = recoverSigner(digest, signature);
+        address signer = _recoverSigner(digest, signature);
         require(signer == from, "Invalid signature");
         
         nonces[from]++;
         
-        (bool success, ) = to.call{value: value, gas: gas}(data);
-        require(success, "Execution failed");
+        // Append the original sender to the end of msg.data (EIP-2771)
+        bytes memory newData = abi.encodePacked(data, from);
+        
+        (bool success, bytes memory returndata) = to.call{value: value, gas: gas}(newData);
+        if (!success) {
+            assembly {
+                revert(add(returndata, 32), mload(returndata))
+            }
+        }
         
         return true;
     }
     
-    function recoverSigner(bytes32 hash, bytes calldata signature) internal pure returns (address) {
+    function _recoverSigner(bytes32 hash, bytes calldata signature) private pure returns (address) {
         require(signature.length == 65, "Invalid signature length");
         bytes32 r;
         bytes32 s;

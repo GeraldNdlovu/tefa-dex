@@ -1,41 +1,39 @@
 import { network } from "hardhat";
-import { ethers } from "ethers";
 
 async function main() {
-    const { ethers: hreEthers } = await network.connect();
-    const [user] = await hreEthers.getSigners();
-    
-    const FORWARDER = "0xA9fCEd86688FF5c1528600989194fA7AE5c33b1f";
-    const GASLESS_ROUTER = "0x76E102EFA0baC7D05Eb04F8DdCbD1bd9C13fB839";
-    const TKA = "0x3299Fe8d021d49f04080e67A6d5Ee2f790A71D1f";
-    const TKB = "0x380bAF28b597dE4b5FBeBbb7e3fea98a843D553E";
+    const { ethers } = await network.connect();
+    const [user] = await ethers.getSigners();
     const userAddress = await user.getAddress();
     
+    const FORWARDER = "0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690";
+    const GASLESS_ROUTER = "0x998abeb3E57409262aE5b751f60747921B33613E";
+    const TKA = "0x84eA74d481Ee0A5332c457a4d796187F6Ba67fEB";
+    const TKB = "0x9E545E3C0baAB3E08CdfD552C960A1050f373042";
+    
     console.log("\n" + "=".repeat(60));
-    console.log("🧪 GASLESS TKA -> TKB SWAP");
+    console.log("🧪 GASLESS SWAP TEST - LOCALHOST");
     console.log("=".repeat(60));
     
-    const tokenA = await hreEthers.getContractAt("MockERC20", TKA);
+    const tokenA = await ethers.getContractAt("MockERC20", TKA);
     const balanceBefore = await tokenA.balanceOf(userAddress);
     console.log(`\n TKA balance before: ${ethers.formatEther(balanceBefore)}`);
     
-    // Approve the new Router
     console.log("\n1️⃣ Approving Gasless Router...");
     const approveTx = await tokenA.approve(GASLESS_ROUTER, ethers.parseEther("1"));
     await approveTx.wait();
     console.log("   ✅ Router approved");
     
-    const router = await hreEthers.getContractAt("Router", GASLESS_ROUTER);
+    const router = await ethers.getContractAt("Router", GASLESS_ROUTER);
     const swapData = router.interface.encodeFunctionData("swap", [TKA, TKB, ethers.parseEther("1")]);
     
-    const forwarder = await hreEthers.getContractAt("TrustedForwarder", FORWARDER);
+    const forwarder = await ethers.getContractAt("TrustedForwarder", FORWARDER);
     const nonce = await forwarder.nonces(userAddress);
     console.log(`\n2️⃣ Nonce: ${nonce}`);
     
     const domain = {
         name: "TrustedForwarder",
         version: "1",
-        chainId: 11155111,
+        chainId: 31337,
         verifyingContract: FORWARDER
     };
     
@@ -54,7 +52,7 @@ async function main() {
         from: userAddress,
         to: GASLESS_ROUTER,
         value: 0,
-        gas: 500000,
+        gas: 300000,
         nonce: nonce,
         data: swapData
     };

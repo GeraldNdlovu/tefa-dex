@@ -5,33 +5,24 @@ async function main() {
     const { ethers: hreEthers } = await network.connect();
     const [user] = await hreEthers.getSigners();
     
-    const FORWARDER = "0xA9fCEd86688FF5c1528600989194fA7AE5c33b1f";
-    const GASLESS_ROUTER = "0x76E102EFA0baC7D05Eb04F8DdCbD1bd9C13fB839";
-    const TKA = "0x3299Fe8d021d49f04080e67A6d5Ee2f790A71D1f";
-    const TKB = "0x380bAF28b597dE4b5FBeBbb7e3fea98a843D553E";
+    const FORWARDER = "0x8cF91bAc29D8E6449EE036093C3EB73158b41E0C";
+    const TEST_RECEIVER = "0x30BC9f7812aB04e88Be6697622c9603c224C84Bd";
     const userAddress = await user.getAddress();
     
     console.log("\n" + "=".repeat(60));
-    console.log("🧪 GASLESS TKA -> TKB SWAP");
+    console.log("🧪 TESTING SIMPLE GASLESS CALL");
     console.log("=".repeat(60));
     
-    const tokenA = await hreEthers.getContractAt("MockERC20", TKA);
-    const balanceBefore = await tokenA.balanceOf(userAddress);
-    console.log(`\n TKA balance before: ${ethers.formatEther(balanceBefore)}`);
+    // 1. Create call data for setValue(42)
+    const receiver = await hreEthers.getContractAt("TestReceiver", TEST_RECEIVER);
+    const callData = receiver.interface.encodeFunctionData("setValue", [42]);
     
-    // Approve the new Router
-    console.log("\n1️⃣ Approving Gasless Router...");
-    const approveTx = await tokenA.approve(GASLESS_ROUTER, ethers.parseEther("1"));
-    await approveTx.wait();
-    console.log("   ✅ Router approved");
-    
-    const router = await hreEthers.getContractAt("Router", GASLESS_ROUTER);
-    const swapData = router.interface.encodeFunctionData("swap", [TKA, TKB, ethers.parseEther("1")]);
-    
+    // 2. Get nonce
     const forwarder = await hreEthers.getContractAt("TrustedForwarder", FORWARDER);
     const nonce = await forwarder.nonces(userAddress);
-    console.log(`\n2️⃣ Nonce: ${nonce}`);
+    console.log(`\n1️⃣ Nonce: ${nonce.toString()}`);
     
+    // 3. Create EIP-712 typed data
     const domain = {
         name: "TrustedForwarder",
         version: "1",
@@ -52,18 +43,20 @@ async function main() {
     
     const message = {
         from: userAddress,
-        to: GASLESS_ROUTER,
+        to: TEST_RECEIVER,
         value: 0,
-        gas: 500000,
+        gas: 200000,
         nonce: nonce,
-        data: swapData
+        data: callData
     };
     
-    console.log("\n3️⃣ Signing meta-transaction (gas-free)...");
+    // 4. Sign
+    console.log("2️⃣ Signing meta-transaction...");
     const signature = await user.signTypedData(domain, types, message);
     console.log("   ✅ Signature created");
     
-    console.log("\n4️⃣ Sending to relayer...");
+    // 5. Send to relayer
+    console.log("\n3️⃣ Sending to relayer...");
     const response = await fetch("http://localhost:3000/relay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,21 +74,19 @@ async function main() {
     const result = await response.json();
     
     if (result.success) {
-        console.log(`   ✅ Swap submitted!`);
-        console.log(`   Tx hash: ${result.txHash}`);
+        console.log(`   ✅ Transaction submitted!`);
+        console.log(`   Tx Hash: ${result.txHash}`);
         
-        const balanceAfter = await tokenA.balanceOf(userAddress);
-        console.log(`\n5️⃣ Result:`);
-        console.log(`   TKA balance after: ${ethers.formatEther(balanceAfter)}`);
-        console.log(`   TKA spent: ${ethers.formatEther(balanceBefore - balanceAfter)}`);
-        
-        console.log("\n" + "=".repeat(60));
-        console.log("✅ GASLESS SWAP SUCCESSFUL!");
-        console.log("   User paid 0 gas");
-        console.log("=".repeat(60) + "\n");
+        // Check the value was set
+        const valueSet = await receiver.getValue();
+        console.log(`\n4️⃣ Result: value = ${valueSet.toString()}`);
     } else {
         console.log(`   ❌ Failed: ${result.error}`);
     }
+    
+    console.log("\n" + "=".repeat(60));
+    console.log("✅ TEST COMPLETE");
+    console.log("=".repeat(60) + "\n");
 }
 
 main().catch(console.error);
