@@ -228,7 +228,3 @@ MIT License - see [LICENSE](LICENSE) file for details.
   <strong>Built with 🔥 by the TEFA Team</strong>
 </div>
 
-
-**Done. README is updated and pushed.**
-
-Ready to move to Step 1: Test gasless swap on local Hardhat node?
