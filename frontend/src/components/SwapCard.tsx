@@ -34,6 +34,7 @@ export const SwapCard: React.FC = () => {
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [useGasless, setUseGasless] = useState<boolean>(false);
+  const [routerApproved, setRouterApproved] = useState<boolean>(false);
 
   useEffect(() => {
     checkConnection();
@@ -51,6 +52,7 @@ export const SwapCard: React.FC = () => {
         setAccount(address);
         await updateBalances(address, provider);
         await checkGaslessEligibility(address, provider);
+        await checkAllowance(address, provider);
       }
     }
   };
@@ -59,8 +61,13 @@ export const SwapCard: React.FC = () => {
     const balance = await provider.getBalance(address);
     const ethBalanceNum = parseFloat(ethers.formatEther(balance));
     setEthBalance(ethBalanceNum.toFixed(4));
-    // If user has less than 0.001 ETH, suggest gasless
     setUseGasless(ethBalanceNum < 0.001);
+  };
+
+  const checkAllowance = async (address: string, provider: ethers.BrowserProvider) => {
+    const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, provider);
+    const allowance = await tokenA.allowance(address, CONTRACT_ADDRESSES.GASLESS_ROUTER);
+    setRouterApproved(allowance >= ethers.parseEther("10"));
   };
 
   const updateBalances = async (address: string, provider: ethers.BrowserProvider) => {
@@ -88,6 +95,7 @@ export const SwapCard: React.FC = () => {
         setAccount(address);
         await updateBalances(address, provider);
         await checkGaslessEligibility(address, provider);
+        await checkAllowance(address, provider);
       } catch (error) {
         console.error("Failed to connect:", error);
       }
@@ -96,29 +104,46 @@ export const SwapCard: React.FC = () => {
     }
   };
 
+  const handleApprove = async () => {
+    if (!signer) return;
+    setLoading(true);
+    try {
+      const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, signer);
+      const approveAmount = ethers.parseEther("10000");
+      const approveTx = await tokenA.approve(CONTRACT_ADDRESSES.GASLESS_ROUTER, approveAmount);
+      await approveTx.wait();
+      await checkAllowance(account, provider!);
+      alert("Router approved!");
+    } catch (error) {
+      console.error("Approval failed:", error);
+      alert("Approval failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSwap = async () => {
     if (!signer || !amount) return;
     setLoading(true);
     
     try {
-      const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, signer);
       const swapAmount = ethers.parseEther(amount);
       
       // Check allowance
+      const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, signer);
       const allowance = await tokenA.allowance(account, CONTRACT_ADDRESSES.GASLESS_ROUTER);
       
       if (allowance < swapAmount) {
-        console.log("Approving...");
-        const approveTx = await tokenA.approve(CONTRACT_ADDRESSES.GASLESS_ROUTER, swapAmount);
-        await approveTx.wait();
+        alert("Please approve the router first");
+        setLoading(false);
+        return;
       }
       
       if (useGasless) {
-        // Gasless transaction via relayer
         await handleGaslessSwap(swapAmount);
       } else {
-        // Regular transaction
-        const router = new ethers.Contract(CONTRACT_ADDRESSES.ROUTER, ROUTER_ABI, signer);
+        // Use Gasless Router for regular swap too
+        const router = new ethers.Contract(CONTRACT_ADDRESSES.GASLESS_ROUTER, ROUTER_ABI, signer);
         const tx = await router.swap(
           CONTRACT_ADDRESSES.TOKEN_A,
           CONTRACT_ADDRESSES.TOKEN_B,
@@ -217,9 +242,18 @@ export const SwapCard: React.FC = () => {
             <p className="text-sm text-gray-600">TKA: {parseFloat(tkaBalance).toFixed(2)}</p>
             <p className="text-sm text-gray-600">TKB: {parseFloat(tkbBalance).toFixed(2)}</p>
             <p className="text-sm text-gray-600">ETH: {parseFloat(ethBalance).toFixed(4)}</p>
-            {useGasless && (
+            {!routerApproved && (
+              <button
+                onClick={handleApprove}
+                disabled={loading}
+                className="mt-2 w-full bg-yellow-500 text-white py-1 px-2 rounded text-sm hover:bg-yellow-600"
+              >
+                Approve Router First
+              </button>
+            )}
+            {useGasless && routerApproved && (
               <p className="text-sm text-green-600 font-semibold mt-1">
-                ⚡ Gas-free mode enabled (low ETH balance)
+                ⚡ Gas-free mode active
               </p>
             )}
           </div>
@@ -240,21 +274,21 @@ export const SwapCard: React.FC = () => {
           
           <button
             onClick={handleSwap}
-            disabled={loading || !amount}
+            disabled={loading || !amount || !routerApproved}
             className={`w-full py-2 px-4 rounded-lg text-white ${
-              loading || !amount
+              loading || !amount || !routerApproved
                 ? 'bg-gray-400 cursor-not-allowed'
                 : useGasless
                 ? 'bg-green-500 hover:bg-green-600'
                 : 'bg-blue-500 hover:bg-blue-600'
             }`}
           >
-            {loading ? 'Swapping...' : useGasless ? '⚡ Swap (Gas-Free)' : 'Swap'}
+            {loading ? 'Processing...' : routerApproved ? (useGasless ? '⚡ Swap (Gas-Free)' : 'Swap') : 'Approve First'}
           </button>
           
-          {useGasless && (
+          {useGasless && routerApproved && (
             <p className="text-xs text-green-600 text-center mt-3">
-              🔥 You have low ETH balance. Using gas-free transaction via relayer.
+              🔥 You have low ETH balance. Using gas-free transaction.
             </p>
           )}
         </>
