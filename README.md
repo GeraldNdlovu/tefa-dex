@@ -166,14 +166,7 @@ npx hardhat run scripts/test-gasless-swap.mjs --network sepolia
 
 ## 💰 Revenue Model
 
-| Daily Volume | Swap Fees | LP (60%) | Treasury (25%) | Stakers (10%) | FSP (5%) |
-|--------------|-----------|----------|----------------|---------------|----------|
-| $1M | $3,000 | $1,800 | $750 | $300 | $150 |
-| $10M | $30,000 | $18,000 | $7,500 | $3,000 | $1,500 |
-| $100M | $300,000 | $180,000 | $75,000 | $30,000 | $15,000 |
-
-**Projected Annual Revenue (at $10M daily volume): ~$10.95M**
-
+$0
 ---
 
 ## 🗺️ Roadmap
@@ -226,7 +219,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📞 Contact
 
-- **GitHub**: [@GeraldNdlovu](https://github.com/GeraldNdlovu)
+- **e-mail**: dumizo@yahoo.com
 - **Project Link**: [https://github.com/GeraldNdlovu/tefa-dex](https://github.com/GeraldNdlovu/tefa-dex)
 
 ---
