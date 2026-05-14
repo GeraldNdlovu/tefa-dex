@@ -16,6 +16,8 @@ contract Pool {
     address public feeCollector;
     
     event Swap(address indexed sender, address tokenIn, uint256 amountIn, uint256 amountOut);
+    event LiquidityAdded(address indexed provider, uint256 amount0, uint256 amount1);
+    event LiquidityRemoved(address indexed provider, uint256 amount0, uint256 amount1);
     event FeeCollectorUpdated(address indexed oldCollector, address indexed newCollector);
     
     constructor(address _token0, address _token1) {
@@ -28,6 +30,16 @@ contract Pool {
         IERC20(token1).transferFrom(msg.sender, address(this), amount1);
         reserve0 += amount0;
         reserve1 += amount1;
+        emit LiquidityAdded(msg.sender, amount0, amount1);
+    }
+    
+    function removeLiquidity(uint256 amount0, uint256 amount1) external {
+        require(reserve0 >= amount0 && reserve1 >= amount1, "Insufficient reserves");
+        reserve0 -= amount0;
+        reserve1 -= amount1;
+        IERC20(token0).transfer(msg.sender, amount0);
+        IERC20(token1).transfer(msg.sender, amount1);
+        emit LiquidityRemoved(msg.sender, amount0, amount1);
     }
     
     function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut) 
@@ -46,9 +58,6 @@ contract Pool {
         uint256 fee = amountIn * FEE / 1000;
         uint256 amountInAfterFee = amountIn - fee;
         
-        // Transfer tokens from user to pool (handled by router, not here)
-        // The router already transferred tokens, so we just update reserves
-        
         if (tokenIn == token0) {
             amountOut = getAmountOut(amountInAfterFee, reserve0, reserve1);
             reserve0 += amountIn;
@@ -61,7 +70,6 @@ contract Pool {
             IERC20(token0).transfer(msg.sender, amountOut);
         }
         
-        // Send fee to FeeCollector if set
         if (fee > 0 && feeCollector != address(0)) {
             IERC20(tokenIn).approve(feeCollector, fee);
             IFeeCollector(feeCollector).distributeFees(address(this), tokenIn, fee);
