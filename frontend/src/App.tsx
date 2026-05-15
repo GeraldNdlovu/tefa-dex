@@ -3,33 +3,11 @@ import { ethers } from 'ethers';
 import { CONTRACT_ADDRESSES, RELAYER_URL } from './config/contracts';
 import { Liquidity } from './components/Liquidity';
 import { ErrorMessage } from './components/ErrorMessage';
+import { PriceChart } from './components/PriceChart';
 import { 
   ArrowDownUp, Wallet, Settings, RefreshCw, Zap, Shield, TrendingUp, 
-  History, LineChart, X, AlertTriangle, Copy, Droplet 
+  History, X, AlertTriangle, Copy, Droplet 
 } from 'lucide-react';
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-} from 'chart.js';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
 
 declare global {
   interface Window {
@@ -75,17 +53,13 @@ function App() {
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [useGasless, setUseGasless] = useState<boolean>(false);
-  const [routerApprovedTKA, setRouterApprovedTKA] = useState<boolean>(false);
-  const [routerApprovedTKB, setRouterApprovedTKB] = useState<boolean>(false);
+  const [routerApproved, setRouterApproved] = useState<boolean>(false);
   const [reserves, setReserves] = useState<{ tka: string; tkb: string }>({ tka: '0', tkb: '0' });
   const [exchangeRate, setExchangeRate] = useState<string>('0');
   const [slippage, setSlippage] = useState<number>(0.5);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [swapHistory, setSwapHistory] = useState<SwapHistory[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
-  const [priceHistory, setPriceHistory] = useState<number[]>([]);
-  const [lastPrice, setLastPrice] = useState<number>(0);
-  const [priceChange, setPriceChange] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'swap' | 'liquidity'>('swap');
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'warning' | 'error' | 'info' | 'success' } | null>(null);
@@ -96,11 +70,9 @@ function App() {
   const tokenOutBalance = isFlipped ? tkaBalance : tkbBalance;
   const tokenInAddr = isFlipped ? CONTRACT_ADDRESSES.TOKEN_B : CONTRACT_ADDRESSES.TOKEN_A;
   const tokenOutAddr = isFlipped ? CONTRACT_ADDRESSES.TOKEN_A : CONTRACT_ADDRESSES.TOKEN_B;
-  const isRouterApproved = isFlipped ? routerApprovedTKB : routerApprovedTKA;
 
   useEffect(() => {
     loadSwapHistory();
-    generateMockPriceHistory();
     checkIfWalletConnected();
   }, []);
 
@@ -121,25 +93,13 @@ function App() {
           setProvider(provider);
           setSigner(signer);
           await updateBalances(address, provider);
-          await checkAllowances(address, provider);
+          await checkAllowance(address, provider);
           await updateReserves(provider);
         }
       } catch (error) {
         console.error("Failed to check wallet:", error);
       }
     }
-  };
-
-  const generateMockPriceHistory = () => {
-    const prices = [];
-    let basePrice = 0.74;
-    for (let i = 0; i < 30; i++) {
-      basePrice += (Math.random() - 0.5) * 0.01;
-      prices.push(basePrice);
-    }
-    setPriceHistory(prices);
-    setLastPrice(prices[prices.length - 1]);
-    setPriceChange(((prices[prices.length - 1] - prices[0]) / prices[0]) * 100);
   };
 
   const loadSwapHistory = () => {
@@ -169,38 +129,15 @@ function App() {
     }
   };
 
-  const checkAllowances = async (address: string, provider: any) => {
+  const checkAllowance = async (address: string, provider: any) => {
     try {
       const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, provider);
-      const tokenB = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_B, ERC20_ABI, provider);
-      const allowanceA = await tokenA.allowance(address, CONTRACT_ADDRESSES.ROUTER);
-      const allowanceB = await tokenB.allowance(address, CONTRACT_ADDRESSES.ROUTER);
-      setRouterApprovedTKA(allowanceA >= ethers.parseEther("10"));
-      setRouterApprovedTKB(allowanceB >= ethers.parseEther("10"));
+      const allowance = await tokenA.allowance(address, CONTRACT_ADDRESSES.ROUTER);
+      const hasAllowance = allowance >= ethers.parseEther("10");
+      setRouterApproved(hasAllowance);
+      return hasAllowance;
     } catch (e) {
-      console.error("Failed to check allowances:", e);
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!signer) {
-      showToast("Please connect wallet first", 'warning');
-      return;
-    }
-    setLoading(true);
-    try {
-      const tokenToApprove = isFlipped ? CONTRACT_ADDRESSES.TOKEN_B : CONTRACT_ADDRESSES.TOKEN_A;
-      const tokenSymbol = isFlipped ? 'TKB' : 'TKA';
-      const token = new ethers.Contract(tokenToApprove, ERC20_ABI, signer);
-      const approveAmount = ethers.parseEther("10000");
-      const approveTx = await token.approve(CONTRACT_ADDRESSES.ROUTER, approveAmount);
-      await approveTx.wait();
-      await checkAllowances(account, provider);
-      showToast(`${tokenSymbol} approved! You can now swap.`, 'success');
-    } catch (error) {
-      showToast("Approval failed. Please try again.", 'error');
-    } finally {
-      setLoading(false);
+      return false;
     }
   };
 
@@ -216,10 +153,8 @@ function App() {
       setTkbBalance(Number(ethers.formatEther(tkbBalance)).toFixed(2));
       setEthBalance(ethNum.toFixed(4));
       setUseGasless(ethNum < 0.001);
-      return { tka: tkaBalance, tkb: tkbBalance };
     } catch (e) {
       console.error("Failed to update balances:", e);
-      return null;
     }
   };
 
@@ -238,7 +173,7 @@ function App() {
       setProvider(provider);
       setSigner(signer);
       await updateBalances(address, provider);
-      await checkAllowances(address, provider);
+      await checkAllowance(address, provider);
       await updateReserves(provider);
       window.ethereum.on('chainChanged', () => window.location.reload());
       window.ethereum.on('accountsChanged', () => window.location.reload());
@@ -254,10 +189,30 @@ function App() {
     if (account && provider) {
       setLoading(true);
       await updateBalances(account, provider);
-      await checkAllowances(account, provider);
+      await checkAllowance(account, provider);
       await updateReserves(provider);
       setLoading(false);
       showToast("Data refreshed!", 'success');
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!signer) {
+      showToast("Please connect wallet first", 'warning');
+      return;
+    }
+    setLoading(true);
+    try {
+      const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, signer);
+      const approveAmount = ethers.parseEther("10000");
+      const approveTx = await tokenA.approve(CONTRACT_ADDRESSES.ROUTER, approveAmount);
+      await approveTx.wait();
+      await checkAllowance(account, provider);
+      showToast("Router approved! You can now swap.", 'success');
+    } catch (error) {
+      showToast("Approval failed. Please try again.", 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -279,15 +234,13 @@ function App() {
       showToast(`Insufficient ${tokenInSymbol} balance. You have ${tokenInBalance} ${tokenInSymbol}`, 'error');
       return;
     }
-    if (!isRouterApproved) {
+    if (!routerApproved) {
       showToast(`Please approve the router to spend your ${tokenInSymbol} first`, 'warning');
       return;
     }
     setLoading(true);
     try {
       const swapAmount = ethers.parseEther(amount);
-      
-      // Get balances before swap directly
       const tokenOutContract = new ethers.Contract(tokenOutAddr, ERC20_ABI, provider);
       const balanceBefore = await tokenOutContract.balanceOf(account);
       
@@ -342,7 +295,6 @@ function App() {
         await tx.wait();
       }
       
-      // Get balances after swap
       const balanceAfter = await tokenOutContract.balanceOf(account);
       const receivedWei = balanceAfter - balanceBefore;
       const received = ethers.formatEther(receivedWei);
@@ -392,26 +344,6 @@ function App() {
   };
 
   const tvl = parseFloat(reserves.tka) + parseFloat(reserves.tkb) * parseFloat(exchangeRate);
-  const chartData = {
-    labels: Array.from({ length: priceHistory.length }, (_, i) => `${i * 2}h ago`),
-    datasets: [{
-      label: 'TKA/TKB',
-      data: priceHistory,
-      borderColor: '#c084fc',
-      backgroundColor: 'rgba(192, 132, 252, 0.1)',
-      fill: true,
-      tension: 0.4,
-      pointRadius: 0,
-      pointHoverRadius: 4,
-    }],
-  };
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { mode: 'index' as const, intersect: false } },
-    scales: { x: { grid: { display: false }, ticks: { color: '#9ca3af' } }, y: { grid: { color: '#374151' }, ticks: { color: '#9ca3af' } } }
-  };
-
   const copyAddress = () => {
     navigator.clipboard.writeText(account);
     showToast("Address copied!", 'success');
@@ -448,6 +380,7 @@ function App() {
           </div>
         </div>
       </nav>
+
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex gap-2 mb-6 bg-white/5 rounded-2xl p-1 w-fit">
           <button onClick={() => setActiveTab('swap')} className={`px-6 py-2 rounded-xl font-semibold transition flex items-center gap-2 ${activeTab === 'swap' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}><ArrowDownUp className="w-4 h-4" />Swap</button>
@@ -477,7 +410,7 @@ function App() {
                   <div className="flex items-center justify-between"><span className="text-white text-3xl">{getEstimatedOutput()}</span><div className="flex items-center space-x-2 bg-white/10 px-3 py-1.5 rounded-xl"><div className={`w-5 h-5 ${isFlipped ? 'bg-purple-500' : 'bg-blue-500'} rounded-full`}></div><span className="text-white font-medium">{tokenOutSymbol}</span></div></div>
                 </div>
                 {account && useGasless && (<div className="mb-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-xl"><div className="flex items-center space-x-2"><AlertTriangle className="w-4 h-4 text-yellow-400" /><span className="text-yellow-400 text-sm">Low ETH balance - Gasless mode activated!</span></div><p className="text-yellow-400/70 text-xs mt-1">Your swaps will be gas-free. Only the one-time approval needs a tiny fee.</p></div>)}
-                {!isRouterApproved ? (
+                {!routerApproved ? (
                   <button onClick={handleApprove} disabled={loading} className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-semibold py-4 rounded-xl transition disabled:opacity-50">{loading ? <RefreshCw className="w-5 h-5 animate-spin mx-auto" /> : `Approve ${tokenInSymbol}`}</button>
                 ) : (
                   <button onClick={handleSwap} disabled={loading || !amount || parseFloat(amount) <= 0} className={`w-full font-semibold py-4 rounded-xl transition flex items-center justify-center space-x-2 ${loading || !amount || parseFloat(amount) <= 0 ? 'bg-gray-600 cursor-not-allowed' : useGasless ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700'} text-white`}>
@@ -487,8 +420,11 @@ function App() {
               </div>
             </div>
             <div className="space-y-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 border border-white/20"><div className="flex justify-between items-center mb-4"><div className="flex items-center space-x-2"><LineChart className="w-5 h-5 text-purple-400" /><h3 className="text-white font-semibold">Price Chart</h3></div><div className={`text-sm ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>{priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%</div></div><div className="h-48"><Line data={chartData} options={chartOptions} /></div><div className="mt-3 text-center"><span className="text-2xl font-bold text-white">{lastPrice.toFixed(6)}</span><span className="text-gray-400 text-sm ml-2">TKA/TKB</span></div></div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 border border-white/20"><div className="flex items-center space-x-2 mb-4"><TrendingUp className="w-5 h-5 text-gray-400" /><h3 className="text-white font-semibold">Pool Liquidity</h3></div><div className="space-y-3"><div className="flex justify-between"><span className="text-gray-400 text-sm">TKA Reserve</span><span className="text-white font-medium">{reserves.tka}</span></div><div className="flex justify-between"><span className="text-gray-400 text-sm">TKB Reserve</span><span className="text-white font-medium">{reserves.tkb}</span></div><div className="pt-3 border-t border-white/10"><div className="flex justify-between"><span className="text-gray-400 text-sm">Total Value Locked (TVL)</span><span className="text-green-400 font-medium">${tvl.toFixed(2)}</span></div></div></div></div>
+              <PriceChart provider={provider} />
+              <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 border border-white/20">
+                <div className="flex items-center space-x-2 mb-4"><TrendingUp className="w-5 h-5 text-gray-400" /><h3 className="text-white font-semibold">Pool Liquidity</h3></div>
+                <div className="space-y-3"><div className="flex justify-between"><span className="text-gray-400 text-sm">TKA Reserve</span><span className="text-white font-medium">{reserves.tka}</span></div><div className="flex justify-between"><span className="text-gray-400 text-sm">TKB Reserve</span><span className="text-white font-medium">{reserves.tkb}</span></div><div className="pt-3 border-t border-white/10"><div className="flex justify-between"><span className="text-gray-400 text-sm">Total Value Locked (TVL)</span><span className="text-green-400 font-medium">${tvl.toFixed(2)}</span></div></div></div>
+              </div>
             </div>
           </div>
         ) : (

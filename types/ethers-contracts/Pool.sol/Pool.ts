@@ -6,33 +6,43 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface PoolInterface extends Interface {
-    getFunction(nameOrSignature: "FEE" | "addLiquidity" | "feeCollector" | "getAmountOut" | "getReserves" | "reserve0" | "reserve1" | "setFeeCollector" | "swap" | "token0" | "token1"): FunctionFragment;
+    getFunction(nameOrSignature: "FEE" | "PRECISION" | "addLiquidity" | "feeCollector" | "getAmountOut" | "getLpInfo" | "getReserves" | "lpShares" | "removeLiquidity" | "reserve0" | "reserve1" | "setFeeCollector" | "swap" | "token0" | "token1" | "totalLpShares"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "FeeCollectorUpdated" | "Swap"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "FeeCollectorUpdated" | "LiquidityAdded" | "LiquidityRemoved" | "Swap"): EventFragment;
 
     encodeFunctionData(functionFragment: 'FEE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'PRECISION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addLiquidity', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'feeCollector', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getAmountOut', values: [BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getLpInfo', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getReserves', values?: undefined): string;
+encodeFunctionData(functionFragment: 'lpShares', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'removeLiquidity', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'reserve0', values?: undefined): string;
 encodeFunctionData(functionFragment: 'reserve1', values?: undefined): string;
 encodeFunctionData(functionFragment: 'setFeeCollector', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'swap', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'token0', values?: undefined): string;
 encodeFunctionData(functionFragment: 'token1', values?: undefined): string;
+encodeFunctionData(functionFragment: 'totalLpShares', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'FEE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'PRECISION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addLiquidity', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'feeCollector', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAmountOut', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getLpInfo', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getReserves', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'lpShares', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'removeLiquidity', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'reserve0', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'reserve1', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setFeeCollector', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'swap', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'token0', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'token1', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result;
   }
 
   
@@ -40,6 +50,30 @@ decodeFunctionResult(functionFragment: 'token1', data: BytesLike): Result;
       export type InputTuple = [oldCollector: AddressLike, newCollector: AddressLike];
       export type OutputTuple = [oldCollector: string, newCollector: string];
       export interface OutputObject {oldCollector: string, newCollector: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace LiquidityAddedEvent {
+      export type InputTuple = [provider: AddressLike, amount0: BigNumberish, amount1: BigNumberish, shares: BigNumberish];
+      export type OutputTuple = [provider: string, amount0: bigint, amount1: bigint, shares: bigint];
+      export interface OutputObject {provider: string, amount0: bigint, amount1: bigint, shares: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace LiquidityRemovedEvent {
+      export type InputTuple = [provider: AddressLike, amount0: BigNumberish, amount1: BigNumberish, shares: BigNumberish];
+      export type OutputTuple = [provider: string, amount0: bigint, amount1: bigint, shares: bigint];
+      export interface OutputObject {provider: string, amount0: bigint, amount1: bigint, shares: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -102,6 +136,14 @@ decodeFunctionResult(functionFragment: 'token1', data: BytesLike): Result;
     
 
     
+    PRECISION: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     addLiquidity: TypedContractMethod<
       [amount0: BigNumberish, amount1: BigNumberish, ],
       [void],
@@ -126,10 +168,34 @@ decodeFunctionResult(functionFragment: 'token1', data: BytesLike): Result;
     
 
     
+    getLpInfo: TypedContractMethod<
+      [provider: AddressLike, ],
+      [[bigint, bigint, bigint] & {shares: bigint, amount0: bigint, amount1: bigint }],
+      'view'
+    >
+    
+
+    
     getReserves: TypedContractMethod<
       [],
       [[bigint, bigint]],
       'view'
+    >
+    
+
+    
+    lpShares: TypedContractMethod<
+      [arg0: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    removeLiquidity: TypedContractMethod<
+      [shares: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -181,10 +247,23 @@ decodeFunctionResult(functionFragment: 'token1', data: BytesLike): Result;
     >
     
 
+    
+    totalLpShares: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
     getFunction(nameOrSignature: 'FEE'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'PRECISION'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -204,10 +283,25 @@ getFunction(nameOrSignature: 'getAmountOut'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'getLpInfo'): TypedContractMethod<
+      [provider: AddressLike, ],
+      [[bigint, bigint, bigint] & {shares: bigint, amount0: bigint, amount1: bigint }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getReserves'): TypedContractMethod<
       [],
       [[bigint, bigint]],
       'view'
+    >;
+getFunction(nameOrSignature: 'lpShares'): TypedContractMethod<
+      [arg0: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'removeLiquidity'): TypedContractMethod<
+      [shares: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'reserve0'): TypedContractMethod<
       [],
@@ -239,14 +333,29 @@ getFunction(nameOrSignature: 'token1'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'totalLpShares'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 
     getEvent(key: 'FeeCollectorUpdated'): TypedContractEvent<FeeCollectorUpdatedEvent.InputTuple, FeeCollectorUpdatedEvent.OutputTuple, FeeCollectorUpdatedEvent.OutputObject>;
+getEvent(key: 'LiquidityAdded'): TypedContractEvent<LiquidityAddedEvent.InputTuple, LiquidityAddedEvent.OutputTuple, LiquidityAddedEvent.OutputObject>;
+getEvent(key: 'LiquidityRemoved'): TypedContractEvent<LiquidityRemovedEvent.InputTuple, LiquidityRemovedEvent.OutputTuple, LiquidityRemovedEvent.OutputObject>;
 getEvent(key: 'Swap'): TypedContractEvent<SwapEvent.InputTuple, SwapEvent.OutputTuple, SwapEvent.OutputObject>;
 
     filters: {
       
       'FeeCollectorUpdated(address,address)': TypedContractEvent<FeeCollectorUpdatedEvent.InputTuple, FeeCollectorUpdatedEvent.OutputTuple, FeeCollectorUpdatedEvent.OutputObject>;
       FeeCollectorUpdated: TypedContractEvent<FeeCollectorUpdatedEvent.InputTuple, FeeCollectorUpdatedEvent.OutputTuple, FeeCollectorUpdatedEvent.OutputObject>;
+    
+
+      'LiquidityAdded(address,uint256,uint256,uint256)': TypedContractEvent<LiquidityAddedEvent.InputTuple, LiquidityAddedEvent.OutputTuple, LiquidityAddedEvent.OutputObject>;
+      LiquidityAdded: TypedContractEvent<LiquidityAddedEvent.InputTuple, LiquidityAddedEvent.OutputTuple, LiquidityAddedEvent.OutputObject>;
+    
+
+      'LiquidityRemoved(address,uint256,uint256,uint256)': TypedContractEvent<LiquidityRemovedEvent.InputTuple, LiquidityRemovedEvent.OutputTuple, LiquidityRemovedEvent.OutputObject>;
+      LiquidityRemoved: TypedContractEvent<LiquidityRemovedEvent.InputTuple, LiquidityRemovedEvent.OutputTuple, LiquidityRemovedEvent.OutputObject>;
     
 
       'Swap(address,address,uint256,uint256)': TypedContractEvent<SwapEvent.InputTuple, SwapEvent.OutputTuple, SwapEvent.OutputObject>;
