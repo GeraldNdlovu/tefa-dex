@@ -166,7 +166,7 @@ npx hardhat run scripts/test-gasless-swap.mjs --network sepolia
 
 ## 💰 Revenue Model
 
-$0
+$0.00
 ---
 
 ## 🗺️ Roadmap
