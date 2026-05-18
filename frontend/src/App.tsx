@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { CONTRACT_ADDRESSES, RELAYER_URL } from './config/contracts';
 import { Liquidity } from './components/Liquidity';
+import { Admin } from './components/Admin';
 import { ErrorMessage } from './components/ErrorMessage';
 import { PriceChart } from './components/PriceChart';
 import { 
@@ -60,7 +61,7 @@ function App() {
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [swapHistory, setSwapHistory] = useState<SwapHistory[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'swap' | 'liquidity'>('swap');
+  const [activeTab, setActiveTab] = useState<'swap' | 'liquidity' | 'admin'>('swap');
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'warning' | 'error' | 'info' | 'success' } | null>(null);
 
@@ -71,10 +72,31 @@ function App() {
   const tokenInAddr = isFlipped ? CONTRACT_ADDRESSES.TOKEN_B : CONTRACT_ADDRESSES.TOKEN_A;
   const tokenOutAddr = isFlipped ? CONTRACT_ADDRESSES.TOKEN_A : CONTRACT_ADDRESSES.TOKEN_B;
 
+  // Function to check allowance for the current token
+  const checkCurrentAllowance = async () => {
+    if (!account || !provider) return;
+    try {
+      const tokenToCheck = isFlipped ? CONTRACT_ADDRESSES.TOKEN_B : CONTRACT_ADDRESSES.TOKEN_A;
+      const token = new ethers.Contract(tokenToCheck, ERC20_ABI, provider);
+      const allowance = await token.allowance(account, CONTRACT_ADDRESSES.ROUTER);
+      setRouterApproved(allowance >= ethers.parseEther("10"));
+    } catch (e) {
+      console.error("Failed to check allowance:", e);
+      setRouterApproved(false);
+    }
+  };
+
   useEffect(() => {
     loadSwapHistory();
     checkIfWalletConnected();
   }, []);
+
+  // Re-check allowance when flip happens or account changes
+  useEffect(() => {
+    if (account && provider) {
+      checkCurrentAllowance();
+    }
+  }, [isFlipped, account, provider]);
 
   const showToast = (text: string, type: 'warning' | 'error' | 'info' | 'success') => {
     setToastMessage({ text, type });
@@ -93,8 +115,8 @@ function App() {
           setProvider(provider);
           setSigner(signer);
           await updateBalances(address, provider);
-          await checkAllowance(address, provider);
           await updateReserves(provider);
+          // Allowance will be checked by the useEffect above
         }
       } catch (error) {
         console.error("Failed to check wallet:", error);
@@ -126,18 +148,6 @@ function App() {
       setExchangeRate(rate.toFixed(6));
     } catch (e) {
       console.error("Failed to get reserves:", e);
-    }
-  };
-
-  const checkAllowance = async (address: string, provider: any) => {
-    try {
-      const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, provider);
-      const allowance = await tokenA.allowance(address, CONTRACT_ADDRESSES.ROUTER);
-      const hasAllowance = allowance >= ethers.parseEther("10");
-      setRouterApproved(hasAllowance);
-      return hasAllowance;
-    } catch (e) {
-      return false;
     }
   };
 
@@ -173,7 +183,6 @@ function App() {
       setProvider(provider);
       setSigner(signer);
       await updateBalances(address, provider);
-      await checkAllowance(address, provider);
       await updateReserves(provider);
       window.ethereum.on('chainChanged', () => window.location.reload());
       window.ethereum.on('accountsChanged', () => window.location.reload());
@@ -189,8 +198,8 @@ function App() {
     if (account && provider) {
       setLoading(true);
       await updateBalances(account, provider);
-      await checkAllowance(account, provider);
       await updateReserves(provider);
+      await checkCurrentAllowance();
       setLoading(false);
       showToast("Data refreshed!", 'success');
     }
@@ -203,13 +212,16 @@ function App() {
     }
     setLoading(true);
     try {
-      const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, signer);
+      const tokenToApprove = isFlipped ? CONTRACT_ADDRESSES.TOKEN_B : CONTRACT_ADDRESSES.TOKEN_A;
+      const tokenSymbol = isFlipped ? 'TKB' : 'TKA';
+      const token = new ethers.Contract(tokenToApprove, ERC20_ABI, signer);
       const approveAmount = ethers.parseEther("10000");
-      const approveTx = await tokenA.approve(CONTRACT_ADDRESSES.ROUTER, approveAmount);
+      const approveTx = await token.approve(CONTRACT_ADDRESSES.ROUTER, approveAmount);
       await approveTx.wait();
-      await checkAllowance(account, provider);
-      showToast("Router approved! You can now swap.", 'success');
+      await checkCurrentAllowance();
+      showToast(`${tokenSymbol} approved! You can now swap.`, 'success');
     } catch (error) {
+      console.error("Approval failed:", error);
       showToast("Approval failed. Please try again.", 'error');
     } finally {
       setLoading(false);
@@ -385,14 +397,17 @@ function App() {
         <div className="flex gap-2 mb-6 bg-white/5 rounded-2xl p-1 w-fit">
           <button onClick={() => setActiveTab('swap')} className={`px-6 py-2 rounded-xl font-semibold transition flex items-center gap-2 ${activeTab === 'swap' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}><ArrowDownUp className="w-4 h-4" />Swap</button>
           <button onClick={() => setActiveTab('liquidity')} className={`px-6 py-2 rounded-xl font-semibold transition flex items-center gap-2 ${activeTab === 'liquidity' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}><Droplet className="w-4 h-4" />Liquidity</button>
+          <button onClick={() => setActiveTab('admin')} className={`px-6 py-2 rounded-xl font-semibold transition flex items-center gap-2 ${activeTab === 'admin' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}><Shield className="w-4 h-4" />Admin</button>
         </div>
+        
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10"><p className="text-gray-400 text-xs mb-1">TKA Balance</p><p className="text-white text-xl font-bold">{tkaBalance}</p></div>
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10"><p className="text-gray-400 text-xs mb-1">TKB Balance</p><p className="text-white text-xl font-bold">{tkbBalance}</p></div>
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10"><p className="text-gray-400 text-xs mb-1">ETH Balance</p><p className="text-white text-xl font-bold">{ethBalance}</p></div>
           <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10"><p className="text-gray-400 text-xs mb-1">Exchange Rate</p><p className="text-green-400 text-xl font-bold">1 TKA = {exchangeRate} TKB</p></div>
         </div>
-        {activeTab === 'swap' ? (
+
+        {activeTab === 'swap' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-6 border border-white/20 shadow-2xl">
@@ -427,9 +442,16 @@ function App() {
               </div>
             </div>
           </div>
-        ) : (
+        )}
+        
+        {activeTab === 'liquidity' && (
           <div className="max-w-2xl mx-auto"><Liquidity account={account} provider={provider} signer={signer} onRefresh={refreshData} /></div>
         )}
+        
+        {activeTab === 'admin' && (
+          <div className="max-w-2xl mx-auto"><Admin account={account} provider={provider} /></div>
+        )}
+
         {showSettings && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowSettings(false)}>
             <div className="bg-gray-800 rounded-3xl p-6 w-96 max-w-md" onClick={(e) => e.stopPropagation()}>
@@ -439,6 +461,7 @@ function App() {
             </div>
           </div>
         )}
+
         {showHistory && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowHistory(false)}>
             <div className="bg-gray-800 rounded-3xl p-6 w-full max-w-2xl max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>

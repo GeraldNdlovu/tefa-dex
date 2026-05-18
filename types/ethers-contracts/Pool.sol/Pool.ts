@@ -6,12 +6,11 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface PoolInterface extends Interface {
-    getFunction(nameOrSignature: "FEE" | "PRECISION" | "addLiquidity" | "feeCollector" | "getAmountOut" | "getLpInfo" | "getReserves" | "lpShares" | "removeLiquidity" | "reserve0" | "reserve1" | "setFeeCollector" | "swap" | "token0" | "token1" | "totalLpShares"): FunctionFragment;
+    getFunction(nameOrSignature: "FEE" | "addLiquidity" | "feeCollector" | "getAmountOut" | "getLpInfo" | "getReserves" | "lpShares" | "removeLiquidity" | "reserve0" | "reserve1" | "setFeeCollector" | "swap" | "token0" | "token1" | "totalLpShares"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "FeeCollectorUpdated" | "LiquidityAdded" | "LiquidityRemoved" | "Swap"): EventFragment;
 
     encodeFunctionData(functionFragment: 'FEE', values?: undefined): string;
-encodeFunctionData(functionFragment: 'PRECISION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addLiquidity', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'feeCollector', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getAmountOut', values: [BigNumberish, BigNumberish, BigNumberish]): string;
@@ -28,7 +27,6 @@ encodeFunctionData(functionFragment: 'token1', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalLpShares', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'FEE', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'PRECISION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addLiquidity', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'feeCollector', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAmountOut', data: BytesLike): Result;
@@ -129,14 +127,6 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
     
     
     FEE: TypedContractMethod<
-      [],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    PRECISION: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -259,11 +249,6 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
     getFunction(nameOrSignature: 'FEE'): TypedContractMethod<
-      [],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'PRECISION'): TypedContractMethod<
       [],
       [bigint],
       'view'

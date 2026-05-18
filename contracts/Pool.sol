@@ -15,12 +15,9 @@ contract Pool {
     uint256 public constant FEE = 3; // 0.3%
     address public feeCollector;
     
-    // LP shares with 18 decimals precision (1 LP share = 1e18)
+    // LP shares with 18 decimals precision
     mapping(address => uint256) public lpShares;
     uint256 public totalLpShares;
-    
-    // Scaling factor for share calculation
-    uint256 public constant PRECISION = 1e18;
     
     event Swap(address indexed sender, address tokenIn, uint256 amountIn, uint256 amountOut);
     event LiquidityAdded(address indexed provider, uint256 amount0, uint256 amount1, uint256 shares);
@@ -40,11 +37,12 @@ contract Pool {
         
         uint256 shares;
         if (totalLpShares == 0) {
-            // Initial mint: shares = sqrt(amount0 * amount1)
+            // First deposit: shares = sqrt(amount0 * amount1)
             shares = sqrt(amount0 * amount1);
             require(shares > 0, "Initial shares must be > 0");
         } else {
-            // Calculate shares based on proportion of existing reserves
+            // Calculate shares proportionally
+            // shares = min(amount0 * totalLpShares / reserve0, amount1 * totalLpShares / reserve1)
             shares = (amount0 * totalLpShares) / reserve0;
             uint256 shares1 = (amount1 * totalLpShares) / reserve1;
             if (shares1 < shares) shares = shares1;
