@@ -1,13 +1,14 @@
 import { network } from "hardhat";
-
 async function main() {
-    const { ethers } = await network.connect();
-    console.log("Checking for TrustedForwarder...");
-    const forwarderAddr = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788";
-    const code = await ethers.provider.getCode(forwarderAddr);
-    console.log(code.length > 2 ? "✅ Forwarder exists" : "❌ Need to deploy");
-    if (code.length > 2) {
-        console.log(`   Address: ${forwarderAddr}`);
-    }
+  const { ethers } = await network.connect();
+  const addr = "0x12EA33a8932a5e1eF6Ea68A099B6ea8a32dede96";
+  const code = await ethers.provider.getCode(addr);
+  if (code !== "0x") {
+    console.log("✅ Forwarder exists at:", addr);
+    const forwarder = await ethers.getContractAt("TrustedForwarder", addr);
+    console.log("Code length:", code.length);
+  } else {
+    console.log("❌ No contract at:", addr);
+  }
 }
-main().catch(console.error);
+main();
