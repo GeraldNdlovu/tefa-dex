@@ -1,230 +1,158 @@
- 🔥 TEFA DEX - Gasless Decentralized Exchange
+markdown
+# TEFA DEX 🦁
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Hardhat](https://img.shields.io/badge/Hardhat-2.22.0-FFD500)](https://hardhat.org/)
-[![Solidity](https://img.shields.io/badge/Solidity-0.8.24-363636)](https://soliditylang.org/)
-[![React](https://img.shields.io/badge/React-18.2.0-61DAFB)](https://reactjs.org/)
-[![EIP-2771](https://img.shields.io/badge/EIP-2771-gasless-blue)](https://eips.ethereum.org/EIPS/eip-2771)
+A gasless, meta-transaction powered decentralized exchange built with Solidity and Hardhat. Deployed on **Sepolia testnet** with live token pairs (TKA/TKB) and a working swap interface.
 
-**Swap tokens without paying gas fees.** A production-ready DEX with gasless transactions, protocol fee capture, and a beautiful UI.
+## 🚀 Live Deployment (Sepolia)
 
----
-
-## 📖 Table of Contents
-
-- [Live Demo](#live-demo)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Contracts](#contracts)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Revenue Model](#revenue-model)
-- [Roadmap](#roadmap)
-- [License](#license)
-
----
-
-## 🌐 Live Demo
-
-| | |
+| Contract | Address |
 |---|---|
-| **Frontend** | [http://147.182.193.26:5173](http://147.182.193.26:5173) |
-| **Network** | Sepolia Testnet |
-| **Chain ID** | 11155111 |
+| **TKA Token** | *(from your .env)* |
+| **TKB Token** | *(from your .env)* |
+| **Router** | `0x532C853Cf14Af8BB6B4E215CF482D106483F1Eb2` |
+| **Pool (TKA/TKB)** | *(check via `getPool` on Router)* |
+| **Wallet** | `0xa35dcfB812fB9D9DF1f59e45b72abc94683a9734` |
 
----
+**Pool Reserves (live):**
+- TKA: `12,512.0`
+- TKB: `7,997.4467`
+- Sepolia ETH: `3.4637 ETH`
 
 ## ✨ Features
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Token Swaps | ✅ Live | 0.3% fee, constant product AMM |
-| Liquidity Pools | ✅ Live | Add/remove liquidity, earn fees |
-| Gasless Transactions | ✅ Live | EIP-2771 meta-transactions |
-| Fee Collection | ✅ Live | 60/25/10/5 split |
-| LP Analytics | ✅ Live | Track earnings and pool share |
-| Cross-Chain | 🔄 Planned | Arbitrum, Optimism, Base |
+- **Gasless Transactions** — Users can swap without holding ETH for gas via ERC-2771 meta-transactions
+- **Constant Product AMM** — Classic x*y=k formula with 0.3% fee
+- **Meta-transaction Support** — TrustedForwarder for gasless UX
+- **Fee Distribution** — FeeCollector and Treasury contracts for protocol revenue
+- **Router Architecture** — Modular design separating Pool, Router, and Token contracts
+- **Live on Sepolia** — Fully deployed and tested on Ethereum Sepolia testnet
+- **Frontend Ready** — React frontend in `/frontend` directory
 
----
+## 📁 Project Structure
+tefa-dex/
+├── contracts/ # Solidity smart contracts
+│ ├── Pool.sol # AMM pool with swap & liquidity logic
+│ ├── Router.sol # User-facing router (handles approvals & routing)
+│ ├── MockERC20.sol # Test tokens
+│ ├── TrustedForwarder.sol # ERC-2771 meta-tx forwarder
+│ ├── FeeCollector.sol # Fee distribution contract
+│ ├── Treasury.sol # Protocol treasury
+│ └── FeeSubsidyPool.sol
+├── scripts/ # Deployment & testing scripts
+│ ├── deploy.ts # Main deployment script
+│ ├── check-sepolia-balances.mjs # View Sepolia balances
+│ ├── test-sepolia-swap.js # Test swap on Sepolia
+│ └── check-router.js # Verify Router contract
+├── relayer/ # Meta-transaction relayer service
+├── frontend/ # React frontend application
+├── test/ # Unit tests
+├── hardhat.config.ts # Hardhat configuration
+└── .env # Environment variables (private keys, API keys)
 
-## 🏗️ Architecture
+text
 
-```
-┌─────────────────────────────────────────────────┐
-│                   USER LAYER                     │
-│         MetaMask • WalletConnect • EIP-2771      │
-└─────────────────────┬───────────────────────────┘
-                      ▼
-┌─────────────────────────────────────────────────┐
-│                  FRONTEND LAYER                  │
-│           React + Vite + Tailwind CSS           │
-└─────────────────────┬───────────────────────────┘
-                      ▼
-┌─────────────────────────────────────────────────┐
-│              SMART CONTRACT LAYER                │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
-│  │ Router   │→ │ Pool     │  │ FeeCollector │  │
-│  │ (Entry)  │  │ (AMM)    │  │ (60/25/10/5) │  │
-│  └──────────┘  └──────────┘  └──────────────┘  │
-│  ┌──────────────┐  ┌──────────────────────────┐│
-│  │ Forwarder    │  │ FeeSubsidyPool           ││
-│  │ (EIP-2771)   │  │ (Gas Reimbursement)      ││
-│  └──────────────┘  └──────────────────────────┘│
-└─────────────────────────────────────────────────┘
-                      ▼
-┌─────────────────────────────────────────────────┐
-│                BLOCKCHAIN LAYER                  │
-│     Ethereum • Arbitrum • Optimism • Base       │
-└─────────────────────────────────────────────────┘
-```
+## 🛠 Tech Stack
 
----
+- **Solidity 0.8.24** — Smart contracts
+- **Hardhat** — Development environment
+- **OpenZeppelin** — ERC-2771, ERC20 interfaces
+- **TypeScript** — Deployment scripts
+- **React** — Frontend UI (gasless wallet integration)
 
-## 📦 Smart Contracts
+## 🏁 Quick Start
 
-| Contract | Description |
-|----------|-------------|
-| **Router** | Entry point for swaps and liquidity |
-| **Pool** | AMM with constant product formula |
-| **FeeCollector** | Distributor of protocol fees |
-| **TrustedForwarder** | EIP-2771 gasless transaction handler |
-| **FeeSubsidyPool** | Gas reimbursement for relayers |
-| **RelayerRegistry** | Whitelist and slashing for relayers |
-| **EligibilityOracle** | User eligibility for gas subsidies |
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- MetaMask (for Sepolia)
 
-### Sepolia Addresses
-
-| Contract | Address |
-|----------|---------|
-| Router | `0x532C853Cf14Af8BB6B4E215CF482D106483F1Eb2` |
-| Pool | `0xeb12f5Aab4eabdbb7c374375eE7EE8e0BaEDedd4` |
-| TKA | `0x3299Fe8d021d49f04080e67A6d5Ee2f790A71D1f` |
-| TKB | `0x380bAF28b597dE4b5FBeBbb7e3fea98a843D553E` |
-| Forwarder | `0xA9fCEd86688FF5c1528600989194fA7AE5c33b1f` |
-| Gasless Router | `0x76E102EFA0baC7D05Eb04F8DdCbD1bd9C13fB839` |
-| Treasury | `0x45F811400e3018993726bCc515DDB50A4a3E89c0` |
-| FeeSubsidyPool | `0xEcB93d5378985BAe86Bd727dddDB92884519f328` |
-
----
-
-## 🛠️ Installation
+### Installation
 
 ```bash
 git clone https://github.com/GeraldNdlovu/tefa-dex.git
 cd tefa-dex
 npm install
-cd frontend && npm install && cd ..
-```
-
----
-
-## 🚀 Usage
-
-### Start Frontend
-
-```bash
-cd frontend && npm run dev
-```
-
-### Deploy Locally
-
-```bash
+Compile Contracts
+bash
+npx hardhat clean
+npx hardhat compile
+Local Testing
+bash
+# Terminal 1: Start local Hardhat node
 npx hardhat node
-npx hardhat run scripts/deploy-clean.js --network localhost
-```
 
-### Deploy to Sepolia
+# Terminal 2: Deploy to localhost
+npx hardhat run scripts/deploy.ts --network localhost
+Deploy to Sepolia
+bash
+# Ensure .env has PRIVATE_KEY and ETHERSCAN_API_KEY
+npx hardhat run scripts/deploy.ts --network sepolia
+Verify on Etherscan
+bash
+npx hardhat verify --network sepolia <CONTRACT_ADDRESS> <CONSTRUCTOR_ARGS>
+🔄 Swap Workflow (How It Works)
+User approves Router to spend their tokens (TKA or TKB)
 
-```bash
-npx hardhat run scripts/deploy-sepolia-fees.js --network sepolia
-```
+Router pulls tokens from user → Router address
 
-### LP Management
+Router approves the specific Pool to spend those tokens
 
-```bash
-# Add liquidity
-npx hardhat run scripts/add-liquidity.mjs --network sepolia
+Pool pulls tokens from Router → Pool reserves
 
-# Check LP position
-npx hardhat run scripts/lp-breakdown.mjs --network sepolia
+Pool calculates output using constant product formula: (amountIn * 0.997 * reserveOut) / (reserveIn + amountIn * 0.997)
 
-# Check balances
+Pool sends output tokens to user
+
+0.3% fee is sent to FeeCollector for distribution
+
+📊 Test Results (Sepolia)
+text
+✅ Swap 1 TKA → TKB successful
+  TKA balance before: 987,488.0
+  TKA balance after:  987,487.0
+  Pool: 12,512 TKA / 7,997.45 TKB
+🧪 Testing Scripts
+bash
+# Check Sepolia balances and pool reserves
 npx hardhat run scripts/check-sepolia-balances.mjs --network sepolia
-```
 
-### Gasless Transaction
+# Execute a test swap (1 TKA for TKB)
+npx hardhat run scripts/test-sepolia-swap.js --network sepolia
 
-```bash
-# Run relayer
-cd relayer && npm run dev
+# Check Router contract details
+npx hardhat run scripts/check-router.js --network sepolia
+🎨 Frontend
+The React frontend in /frontend connects to the deployed contracts and supports gasless transactions via the relayer service.
 
-# Execute gasless swap
-npx hardhat run scripts/test-gasless-swap.mjs --network sepolia
-```
+bash
+cd frontend
+npm install
+npm run dev
+🔐 Security
+No admin keys or upgradeable proxies — fully immutable
 
----
+ERC-2771 meta-transactions use signature verification
 
-## 💰 Revenue Model
+Fee parameters are hardcoded (0.3%)
 
-$0.00
----
+Security audit pending (see SECURITY.md)
 
-## 🗺️ Roadmap
+📝 Environment Variables
+Create a .env file:
 
-### ✅ Phase 1: Core DEX (Complete)
-- Router and Pool contracts
-- Liquidity provision
-- Swap functionality
-- Frontend UI
+env
+PRIVATE_KEY=your_wallet_private_key
+ETHERSCAN_API_KEY=your_etherscan_api_key
+SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/your-key
+TKA_ADDRESS=0x...  # Your TKA token address
+TKB_ADDRESS=0x...  # Your TKB token address
+ROUTER_ADDRESS=0x532C853Cf14Af8BB6B4E215CF482D106483F1Eb2
+📜 License
+MIT — see LICENSE file
 
-### ✅ Phase 2: Revenue Model (Complete)
-- Fee Collector (60/25/10/5 split)
-- Treasury management
-- LP analytics
+👤 Author
 
-### 🔄 Phase 3: Gasless Transactions (In Progress)
-- EIP-2771 TrustedForwarder
-- Relayer network
-- Gas subsidy claims
-- Fee subsidy pool
+GitHub: @GeraldNdlovu
+Contact: dumizo@yahoo.com
 
-### 📅 Phase 4: Multi-Chain (Upcoming)
-- Arbitrum deployment
-- Optimism deployment
-- Base deployment
-- Cross-chain bridge
-
-### 📅 Phase 5: Governance (Upcoming)
-- $TEFA token launch
-- DAO setup
-- veToken model
-
----
-
-## 🔒 Security
-
-- ✅ ReentrancyGuard on external functions
-- ✅ Slippage protection
-- ✅ Deadline parameters
-- ✅ Access control for admin functions
-- ✅ EIP-2771 signature verification
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-## 📞 Contact
-
-- **e-mail**: dumizo@yahoo.com
-- **Project Link**: [https://github.com/GeraldNdlovu/tefa-dex](https://github.com/GeraldNdlovu/tefa-dex)
-
----
-
-<div align="center">
-  <strong>Built with 🔥 by the TEFA Team</strong>
-</div>
-
+Repo: tefa-dex
