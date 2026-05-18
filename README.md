@@ -17,7 +17,7 @@ A meta-transaction powered DEX enabling gas-free token swaps via ERC-2771, built
 | **Forwarder** | `0x9aecE1447491a85f936A20139c1Eb8C4Bd74b86d` |
 | **Deployer Wallet** | `0xa35dcfB812fB9D9DF1f59e45b72abc94683a9734` |
 
-**Frontend:** [http://147.182.193.26:5173](http://147.182.193.26:5173)
+**Frontend:** [https://dex.147.182.193.26.nip.io](https://dex.147.182.193.26.nip.io)
 
 **Current Pool State:**
 - TKA Reserve: `1000.0`
@@ -162,7 +162,7 @@ npm install
 npm run dev
 ```
 
-Or access the live deployment at [http://147.182.193.26:5173](http://147.182.193.26:5173)
+Or access the live deployment at [https://dex.147.182.193.26.nip.io](https://dex.147.182.193.26.nip.io)
 
 ---
 
@@ -196,8 +196,6 @@ MIT — see [LICENSE](LICENSE)
 
 ## 👤 Author
 
-**Gerald Ndlovu**
-
 📧 Contact: [dumizo@yahoo.com](mailto:dumizo@yahoo.com)
 
 GitHub: [@GeraldNdlovu](https://github.com/GeraldNdlovu)
@@ -205,8 +203,3 @@ GitHub: [@GeraldNdlovu](https://github.com/GeraldNdlovu)
 ---
 
 *Built with 🔥 Hardhat. Swapping made gasless.*
-
-
-```bash
-git add README.md && git commit -m "docs: update README with working contract addresses and LP share fix" && git push origin main
-```
