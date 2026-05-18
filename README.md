@@ -9,14 +9,20 @@ A meta-transaction powered DEX enabling gas-free token swaps via ERC-2771, built
 ## 🌐 Live Deployment (Sepolia)
 
 | Contract | Address |
-|---|---|
-| TKA Token | `0x6644F8db48e76c54033D332304F6922aE962eD2C` |
-| TKB Token | `0xA682945F10e4e74F9532fB295Cc4c9C69dde60eB` |
-| Router | `0x532C853Cf14Af8BB6B4E215CF482D106483F1Eb2` |
-| Wallet | `0xa35dcfB812fB9D9DF1f59e45b72abc94683a9734` |
+|----------|---------|
+| **TKA Token** | `0xe64F6E38F004eDE64756dd62d4F10Ce28721e155` |
+| **TKB Token** | `0xa2a5CF99ae48dfAF190186f734142C6D17E887B9` |
+| **Router** | `0xFD2E239e503e74a288Ae8AfD9D37c119946A90Ca` |
+| **Pool** | `0xdc9869FA076BCC98f67996dcb9FFF9c3bb5aA802` |
+| **Forwarder** | `0x9aecE1447491a85f936A20139c1Eb8C4Bd74b86d` |
+| **Deployer Wallet** | `0xa35dcfB812fB9D9DF1f59e45b72abc94683a9734` |
 
-**Live Pool Reserves:**  
-`TKA: 12,512.0` | `TKB: 7,997.45` | `ETH: 3.46 ETH`
+**Frontend:** [http://147.182.193.26:5173](http://147.182.193.26:5173)
+
+**Current Pool State:**
+- TKA Reserve: `1000.0`
+- TKB Reserve: `1000.0`
+- Total LP Shares: `1000.0`
 
 ---
 
@@ -25,8 +31,8 @@ A meta-transaction powered DEX enabling gas-free token swaps via ERC-2771, built
 - ⛽ **Gasless Swaps** — Users swap without holding ETH via ERC-2771 meta-transactions
 - 📈 **Constant Product AMM** — `x * y = k` formula with 0.3% fee
 - 🔐 **Fully Immutable** — No admin keys, no upgradeable proxies
-- 💰 **Fee Distribution** — FeeCollector + Treasury for protocol revenue
 - 🧱 **Modular Architecture** — Separate Pool, Router, and Token contracts
+- 💰 **LP Shares** — Properly minted and tracked for liquidity providers
 - 🌍 **Live on Sepolia** — Deployed, tested, and fully functional
 
 ---
@@ -36,7 +42,7 @@ A meta-transaction powered DEX enabling gas-free token swaps via ERC-2771, built
 ```
 tefa-dex/
 ├── contracts/
-│   ├── Pool.sol              # AMM pool (swap + liquidity logic)
+│   ├── Pool.sol              # AMM pool (swap + LP share logic)
 │   ├── Router.sol            # User-facing router (approvals + routing)
 │   ├── MockERC20.sol         # Test ERC20 tokens
 │   ├── TrustedForwarder.sol  # ERC-2771 forwarder for gasless txs
@@ -44,10 +50,10 @@ tefa-dex/
 │   ├── Treasury.sol          # Protocol treasury
 │   └── FeeSubsidyPool.sol    # Gas subsidy pool
 ├── scripts/
-│   ├── deploy.ts                   # Main deployment script
-│   ├── check-sepolia-balances.mjs  # View Sepolia balances & reserves
-│   ├── test-sepolia-swap.js        # Execute test swap
-│   └── check-router.js             # Verify Router contract
+│   ├── deploy-sepolia-fixed.cjs   # Working deployment script
+│   ├── check-sepolia-balances.mjs # View Sepolia balances & reserves
+│   ├── test-sepolia-swap.js       # Execute test swap
+│   └── check-router.js            # Verify Router contract
 ├── relayer/                 # Meta-transaction relayer service
 ├── frontend/                # React frontend (gasless wallet UI)
 ├── test/                    # Unit tests
@@ -60,12 +66,12 @@ tefa-dex/
 ## 🛠 Tech Stack
 
 | Layer | Technology |
-|---|---|
+|-------|------------|
 | Smart Contracts | Solidity 0.8.24 |
 | Framework | Hardhat |
 | Libraries | OpenZeppelin (ERC-2771, ERC20) |
-| Scripts | TypeScript |
-| Frontend | React |
+| Scripts | TypeScript / ESM |
+| Frontend | React + Vite |
 | Network | Sepolia Testnet |
 
 ---
@@ -73,9 +79,9 @@ tefa-dex/
 ## 🏁 Quick Start
 
 ### Prerequisites
-- **Node.js** 18+
-- **npm** or **yarn**
-- **MetaMask** (for Sepolia interaction)
+- Node.js 18+
+- npm or yarn
+- MetaMask (for Sepolia)
 
 ### Installation
 
@@ -92,6 +98,12 @@ npx hardhat clean
 npx hardhat compile
 ```
 
+### Deploy to Sepolia
+
+```bash
+node deploy-sepolia-fixed.cjs
+```
+
 ### Local Development
 
 ```bash
@@ -102,67 +114,47 @@ npx hardhat node
 npx hardhat run scripts/deploy.ts --network localhost
 ```
 
-### Deploy to Sepolia
-
-```bash
-npx hardhat run scripts/deploy.ts --network sepolia
-```
-
-### Verify Contracts
-
-```bash
-npx hardhat verify --network sepolia <ADDRESS> <ARGS>
-```
-
 ---
 
-## 🔄 Swap Architecture
+## 🔄 How It Works
 
-```
-User approves Router
-       ↓
-Router pulls tokens from User → Router
-       ↓
-Router approves Pool to spend tokens
-       ↓
-Pool pulls tokens from Router → Pool reserves
-       ↓
-Pool calculates output: (amountIn × 0.997 × reserveOut) / (reserveIn + amountIn × 0.997)
-       ↓
-Pool sends output tokens to User
-       ↓
-0.3% fee → FeeCollector → Treasury
-```
+### Add Liquidity
+1. User approves Router to spend TKA and TKB
+2. Router transfers tokens from user → Router
+3. Router approves Pool to spend tokens
+4. Pool pulls tokens from Router → Pool
+5. Pool mints LP shares to user (proportional to contribution)
+
+### Remove Liquidity
+1. User calls Router.removeLiquidity with share amount
+2. Router forwards to Pool.removeLiquidityFor
+3. Pool calculates user's token amounts
+4. Pool burns LP shares and transfers tokens back to user
+
+### Swap
+1. User approves Router to spend input token
+2. Router transfers token in → Router
+3. Router approves Pool
+4. Pool calculates output using x*y=k formula with 0.3% fee
+5. Pool sends output token to user
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# View Sepolia balances & pool reserves
+# View balances & pool reserves
 npx hardhat run scripts/check-sepolia-balances.mjs --network sepolia
 
 # Test a swap (1 TKA → TKB)
 npx hardhat run scripts/test-sepolia-swap.js --network sepolia
-
-# Inspect Router contract
-npx hardhat run scripts/check-router.js --network sepolia
-```
-
-### Verified Test Results (Sepolia)
-
-```
-✅ TKA balance before: 987,488.0
-✅ TKA balance after:  987,487.0
-✅ Pool reserves: 12,512 TKA | 7,997.45 TKB
-✅ Swap successful!
 ```
 
 ---
 
 ## 🎨 Frontend
 
-Launch the gasless DEX UI:
+Launch the DEX UI:
 
 ```bash
 cd frontend
@@ -170,7 +162,7 @@ npm install
 npm run dev
 ```
 
-Connects to deployed Sepolia contracts with meta-transaction support.
+Or access the live deployment at [http://147.182.193.26:5173](http://147.182.193.26:5173)
 
 ---
 
@@ -179,7 +171,8 @@ Connects to deployed Sepolia contracts with meta-transaction support.
 - ✅ No admin keys — fully immutable contracts
 - ✅ ERC-2771 signature verification for meta-txs
 - ✅ Fee parameters hardcoded (0.3%)
-- ⏳ Formal audit pending (see [SECURITY.md](SECURITY.md))
+- ✅ LP shares properly minted to users (not router)
+- ⏳ Formal audit pending
 
 ---
 
@@ -191,9 +184,6 @@ Create `.env` in project root:
 PRIVATE_KEY=your_wallet_private_key
 ETHERSCAN_API_KEY=your_etherscan_api_key
 SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/your-key
-TKA_ADDRESS=0x6644F8db48e76c54033D332304F6922aE962eD2C
-TKB_ADDRESS=0xA682945F10e4e74F9532fB295Cc4c9C69dde60eB
-ROUTER_ADDRESS=0x532C853Cf14Af8BB6B4E215CF482D106483F1Eb2
 ```
 
 ---
@@ -208,11 +198,15 @@ MIT — see [LICENSE](LICENSE)
 
 **Gerald Ndlovu**
 
-[![GitHub](https://img.shields.io/badge/GitHub-GeraldNdlovu-181717?style=flat&logo=github)](https://github.com/GeraldNdlovu)
-[![Repo](https://img.shields.io/badge/Repo-tefa--dex-blue?style=flat&logo=github)](https://github.com/GeraldNdlovu/tefa-dex)
+📧 Contact: [dumizo@yahoo.com](mailto:dumizo@yahoo.com)
 
-📧 **Contact:** [dumizo@yahoo.com](mailto:dumizo@yahoo.com)
+GitHub: [@GeraldNdlovu](https://github.com/GeraldNdlovu)
 
 ---
 
 *Built with 🔥 Hardhat. Swapping made gasless.*
+
+
+```bash
+git add README.md && git commit -m "docs: update README with working contract addresses and LP share fix" && git push origin main
+```
