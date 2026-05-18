@@ -6,39 +6,27 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface RouterInterface extends Interface {
-    getFunction(nameOrSignature: "addLiquidity" | "createPool" | "getPool" | "isTrustedForwarder" | "registerPool" | "swap"): FunctionFragment;
+    getFunction(nameOrSignature: "addLiquidity" | "createPool" | "getPool" | "isTrustedForwarder" | "removeLiquidity" | "swap"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "PoolCreated" | "PoolRegistered"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "PoolCreated"): EventFragment;
 
     encodeFunctionData(functionFragment: 'addLiquidity', values: [AddressLike, AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'createPool', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'getPool', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isTrustedForwarder', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'registerPool', values: [AddressLike, AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'removeLiquidity', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'swap', values: [AddressLike, AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'addLiquidity', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isTrustedForwarder', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'registerPool', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'removeLiquidity', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'swap', data: BytesLike): Result;
   }
 
   
     export namespace PoolCreatedEvent {
-      export type InputTuple = [tokenA: AddressLike, tokenB: AddressLike, pool: AddressLike];
-      export type OutputTuple = [tokenA: string, tokenB: string, pool: string];
-      export interface OutputObject {tokenA: string, tokenB: string, pool: string };
-      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
-      export type Filter = TypedDeferredTopicFilter<Event>
-      export type Log = TypedEventLog<Event>
-      export type LogDescription = TypedLogDescription<Event>
-    }
-
-  
-
-    export namespace PoolRegisteredEvent {
       export type InputTuple = [tokenA: AddressLike, tokenB: AddressLike, pool: AddressLike];
       export type OutputTuple = [tokenA: string, tokenB: string, pool: string];
       export interface OutputObject {tokenA: string, tokenB: string, pool: string };
@@ -116,8 +104,8 @@ decodeFunctionResult(functionFragment: 'swap', data: BytesLike): Result;
     
 
     
-    registerPool: TypedContractMethod<
-      [tokenA: AddressLike, tokenB: AddressLike, pool: AddressLike, ],
+    removeLiquidity: TypedContractMethod<
+      [tokenA: AddressLike, tokenB: AddressLike, shares: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -154,8 +142,8 @@ getFunction(nameOrSignature: 'isTrustedForwarder'): TypedContractMethod<
       [boolean],
       'view'
     >;
-getFunction(nameOrSignature: 'registerPool'): TypedContractMethod<
-      [tokenA: AddressLike, tokenB: AddressLike, pool: AddressLike, ],
+getFunction(nameOrSignature: 'removeLiquidity'): TypedContractMethod<
+      [tokenA: AddressLike, tokenB: AddressLike, shares: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -166,16 +154,11 @@ getFunction(nameOrSignature: 'swap'): TypedContractMethod<
     >;
 
     getEvent(key: 'PoolCreated'): TypedContractEvent<PoolCreatedEvent.InputTuple, PoolCreatedEvent.OutputTuple, PoolCreatedEvent.OutputObject>;
-getEvent(key: 'PoolRegistered'): TypedContractEvent<PoolRegisteredEvent.InputTuple, PoolRegisteredEvent.OutputTuple, PoolRegisteredEvent.OutputObject>;
 
     filters: {
       
       'PoolCreated(address,address,address)': TypedContractEvent<PoolCreatedEvent.InputTuple, PoolCreatedEvent.OutputTuple, PoolCreatedEvent.OutputObject>;
       PoolCreated: TypedContractEvent<PoolCreatedEvent.InputTuple, PoolCreatedEvent.OutputTuple, PoolCreatedEvent.OutputObject>;
-    
-
-      'PoolRegistered(address,address,address)': TypedContractEvent<PoolRegisteredEvent.InputTuple, PoolRegisteredEvent.OutputTuple, PoolRegisteredEvent.OutputObject>;
-      PoolRegistered: TypedContractEvent<PoolRegisteredEvent.InputTuple, PoolRegisteredEvent.OutputTuple, PoolRegisteredEvent.OutputObject>;
     
     };
   }

@@ -3,11 +3,10 @@
 /* eslint-disable */
 import type * as feeSubsidyPoolSol from './FeeSubsidyPool.sol/index.js';
 export type { feeSubsidyPoolSol };
-import type * as poolSol from './Pool.sol/index.js';
-export type { poolSol };
 export type { EligibilityOracle } from './EligibilityOracle.js';
 export type { FeeCollector } from './FeeCollector.js';
 export type { MockERC20 } from './MockERC20.js';
+export type { Pool } from './Pool.js';
 export type { RelayerRegistry } from './RelayerRegistry.js';
 export type { Router } from './Router.js';
 export type { SenderTester } from './SenderTester.js';
@@ -26,10 +25,7 @@ export { IEligibilityOracle__factory } from './factories/FeeSubsidyPool.sol/IEli
 export type { IRelayerRegistry } from './FeeSubsidyPool.sol/IRelayerRegistry.js';
 export { IRelayerRegistry__factory } from './factories/FeeSubsidyPool.sol/IRelayerRegistry__factory.js';
 export { MockERC20__factory } from './factories/MockERC20__factory.js';
-export type { IFeeCollector } from './Pool.sol/IFeeCollector.js';
-export { IFeeCollector__factory } from './factories/Pool.sol/IFeeCollector__factory.js';
-export type { Pool } from './Pool.sol/Pool.js';
-export { Pool__factory } from './factories/Pool.sol/Pool__factory.js';
+export { Pool__factory } from './factories/Pool__factory.js';
 export { RelayerRegistry__factory } from './factories/RelayerRegistry__factory.js';
 export { Router__factory } from './factories/Router__factory.js';
 export { SenderTester__factory } from './factories/SenderTester__factory.js';

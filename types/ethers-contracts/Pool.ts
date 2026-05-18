@@ -2,41 +2,39 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
-import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../common.js"
+import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "./common.js"
   
 
   export interface PoolInterface extends Interface {
-    getFunction(nameOrSignature: "FEE" | "addLiquidity" | "feeCollector" | "getAmountOut" | "getLpInfo" | "getReserves" | "lpShares" | "removeLiquidity" | "reserve0" | "reserve1" | "setFeeCollector" | "swap" | "token0" | "token1" | "totalLpShares"): FunctionFragment;
+    getFunction(nameOrSignature: "FEE" | "addLiquidityFor" | "getAmountOut" | "getLpInfo" | "getReserves" | "lpShares" | "removeLiquidityFor" | "reserve0" | "reserve1" | "router" | "swap" | "token0" | "token1" | "totalLpShares"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "FeeCollectorUpdated" | "LiquidityAdded" | "LiquidityRemoved" | "Swap"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AddLiquidity" | "RemoveLiquidity" | "Swap"): EventFragment;
 
     encodeFunctionData(functionFragment: 'FEE', values?: undefined): string;
-encodeFunctionData(functionFragment: 'addLiquidity', values: [BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'feeCollector', values?: undefined): string;
+encodeFunctionData(functionFragment: 'addLiquidityFor', values: [BigNumberish, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'getAmountOut', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getLpInfo', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getReserves', values?: undefined): string;
 encodeFunctionData(functionFragment: 'lpShares', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'removeLiquidity', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'removeLiquidityFor', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'reserve0', values?: undefined): string;
 encodeFunctionData(functionFragment: 'reserve1', values?: undefined): string;
-encodeFunctionData(functionFragment: 'setFeeCollector', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'router', values?: undefined): string;
 encodeFunctionData(functionFragment: 'swap', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'token0', values?: undefined): string;
 encodeFunctionData(functionFragment: 'token1', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalLpShares', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'FEE', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'addLiquidity', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'feeCollector', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'addLiquidityFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAmountOut', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getLpInfo', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getReserves', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'lpShares', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'removeLiquidity', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'removeLiquidityFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'reserve0', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'reserve1', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'setFeeCollector', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'router', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'swap', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'token0', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'token1', data: BytesLike): Result;
@@ -44,10 +42,10 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
   }
 
   
-    export namespace FeeCollectorUpdatedEvent {
-      export type InputTuple = [oldCollector: AddressLike, newCollector: AddressLike];
-      export type OutputTuple = [oldCollector: string, newCollector: string];
-      export interface OutputObject {oldCollector: string, newCollector: string };
+    export namespace AddLiquidityEvent {
+      export type InputTuple = [user: AddressLike, amount0: BigNumberish, amount1: BigNumberish, shares: BigNumberish];
+      export type OutputTuple = [user: string, amount0: bigint, amount1: bigint, shares: bigint];
+      export interface OutputObject {user: string, amount0: bigint, amount1: bigint, shares: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -56,22 +54,10 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
 
   
 
-    export namespace LiquidityAddedEvent {
-      export type InputTuple = [provider: AddressLike, amount0: BigNumberish, amount1: BigNumberish, shares: BigNumberish];
-      export type OutputTuple = [provider: string, amount0: bigint, amount1: bigint, shares: bigint];
-      export interface OutputObject {provider: string, amount0: bigint, amount1: bigint, shares: bigint };
-      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
-      export type Filter = TypedDeferredTopicFilter<Event>
-      export type Log = TypedEventLog<Event>
-      export type LogDescription = TypedLogDescription<Event>
-    }
-
-  
-
-    export namespace LiquidityRemovedEvent {
-      export type InputTuple = [provider: AddressLike, amount0: BigNumberish, amount1: BigNumberish, shares: BigNumberish];
-      export type OutputTuple = [provider: string, amount0: bigint, amount1: bigint, shares: bigint];
-      export interface OutputObject {provider: string, amount0: bigint, amount1: bigint, shares: bigint };
+    export namespace RemoveLiquidityEvent {
+      export type InputTuple = [user: AddressLike, shares: BigNumberish, amount0: BigNumberish, amount1: BigNumberish];
+      export type OutputTuple = [user: string, shares: bigint, amount0: bigint, amount1: bigint];
+      export interface OutputObject {user: string, shares: bigint, amount0: bigint, amount1: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -81,9 +67,9 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
   
 
     export namespace SwapEvent {
-      export type InputTuple = [sender: AddressLike, tokenIn: AddressLike, amountIn: BigNumberish, amountOut: BigNumberish];
-      export type OutputTuple = [sender: string, tokenIn: string, amountIn: bigint, amountOut: bigint];
-      export interface OutputObject {sender: string, tokenIn: string, amountIn: bigint, amountOut: bigint };
+      export type InputTuple = [user: AddressLike, tokenIn: AddressLike, amountIn: BigNumberish, amountOut: BigNumberish];
+      export type OutputTuple = [user: string, tokenIn: string, amountIn: bigint, amountOut: bigint];
+      export interface OutputObject {user: string, tokenIn: string, amountIn: bigint, amountOut: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -134,18 +120,10 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
     
 
     
-    addLiquidity: TypedContractMethod<
-      [amount0: BigNumberish, amount1: BigNumberish, ],
+    addLiquidityFor: TypedContractMethod<
+      [amount0: BigNumberish, amount1: BigNumberish, user: AddressLike, ],
       [void],
       'nonpayable'
-    >
-    
-
-    
-    feeCollector: TypedContractMethod<
-      [],
-      [string],
-      'view'
     >
     
 
@@ -159,8 +137,8 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
 
     
     getLpInfo: TypedContractMethod<
-      [provider: AddressLike, ],
-      [[bigint, bigint, bigint] & {shares: bigint, amount0: bigint, amount1: bigint }],
+      [user: AddressLike, ],
+      [[bigint, bigint, bigint] & {shares: bigint, total: bigint, sharePercent: bigint }],
       'view'
     >
     
@@ -182,8 +160,8 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
     
 
     
-    removeLiquidity: TypedContractMethod<
-      [shares: BigNumberish, ],
+    removeLiquidityFor: TypedContractMethod<
+      [shares: BigNumberish, user: AddressLike, ],
       [void],
       'nonpayable'
     >
@@ -206,10 +184,10 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
     
 
     
-    setFeeCollector: TypedContractMethod<
-      [_feeCollector: AddressLike, ],
-      [void],
-      'nonpayable'
+    router: TypedContractMethod<
+      [],
+      [string],
+      'view'
     >
     
 
@@ -253,15 +231,10 @@ decodeFunctionResult(functionFragment: 'totalLpShares', data: BytesLike): Result
       [bigint],
       'view'
     >;
-getFunction(nameOrSignature: 'addLiquidity'): TypedContractMethod<
-      [amount0: BigNumberish, amount1: BigNumberish, ],
+getFunction(nameOrSignature: 'addLiquidityFor'): TypedContractMethod<
+      [amount0: BigNumberish, amount1: BigNumberish, user: AddressLike, ],
       [void],
       'nonpayable'
-    >;
-getFunction(nameOrSignature: 'feeCollector'): TypedContractMethod<
-      [],
-      [string],
-      'view'
     >;
 getFunction(nameOrSignature: 'getAmountOut'): TypedContractMethod<
       [amountIn: BigNumberish, reserveIn: BigNumberish, reserveOut: BigNumberish, ],
@@ -269,8 +242,8 @@ getFunction(nameOrSignature: 'getAmountOut'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'getLpInfo'): TypedContractMethod<
-      [provider: AddressLike, ],
-      [[bigint, bigint, bigint] & {shares: bigint, amount0: bigint, amount1: bigint }],
+      [user: AddressLike, ],
+      [[bigint, bigint, bigint] & {shares: bigint, total: bigint, sharePercent: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'getReserves'): TypedContractMethod<
@@ -283,8 +256,8 @@ getFunction(nameOrSignature: 'lpShares'): TypedContractMethod<
       [bigint],
       'view'
     >;
-getFunction(nameOrSignature: 'removeLiquidity'): TypedContractMethod<
-      [shares: BigNumberish, ],
+getFunction(nameOrSignature: 'removeLiquidityFor'): TypedContractMethod<
+      [shares: BigNumberish, user: AddressLike, ],
       [void],
       'nonpayable'
     >;
@@ -298,10 +271,10 @@ getFunction(nameOrSignature: 'reserve1'): TypedContractMethod<
       [bigint],
       'view'
     >;
-getFunction(nameOrSignature: 'setFeeCollector'): TypedContractMethod<
-      [_feeCollector: AddressLike, ],
-      [void],
-      'nonpayable'
+getFunction(nameOrSignature: 'router'): TypedContractMethod<
+      [],
+      [string],
+      'view'
     >;
 getFunction(nameOrSignature: 'swap'): TypedContractMethod<
       [tokenIn: AddressLike, amountIn: BigNumberish, ],
@@ -324,23 +297,18 @@ getFunction(nameOrSignature: 'totalLpShares'): TypedContractMethod<
       'view'
     >;
 
-    getEvent(key: 'FeeCollectorUpdated'): TypedContractEvent<FeeCollectorUpdatedEvent.InputTuple, FeeCollectorUpdatedEvent.OutputTuple, FeeCollectorUpdatedEvent.OutputObject>;
-getEvent(key: 'LiquidityAdded'): TypedContractEvent<LiquidityAddedEvent.InputTuple, LiquidityAddedEvent.OutputTuple, LiquidityAddedEvent.OutputObject>;
-getEvent(key: 'LiquidityRemoved'): TypedContractEvent<LiquidityRemovedEvent.InputTuple, LiquidityRemovedEvent.OutputTuple, LiquidityRemovedEvent.OutputObject>;
+    getEvent(key: 'AddLiquidity'): TypedContractEvent<AddLiquidityEvent.InputTuple, AddLiquidityEvent.OutputTuple, AddLiquidityEvent.OutputObject>;
+getEvent(key: 'RemoveLiquidity'): TypedContractEvent<RemoveLiquidityEvent.InputTuple, RemoveLiquidityEvent.OutputTuple, RemoveLiquidityEvent.OutputObject>;
 getEvent(key: 'Swap'): TypedContractEvent<SwapEvent.InputTuple, SwapEvent.OutputTuple, SwapEvent.OutputObject>;
 
     filters: {
       
-      'FeeCollectorUpdated(address,address)': TypedContractEvent<FeeCollectorUpdatedEvent.InputTuple, FeeCollectorUpdatedEvent.OutputTuple, FeeCollectorUpdatedEvent.OutputObject>;
-      FeeCollectorUpdated: TypedContractEvent<FeeCollectorUpdatedEvent.InputTuple, FeeCollectorUpdatedEvent.OutputTuple, FeeCollectorUpdatedEvent.OutputObject>;
+      'AddLiquidity(address,uint256,uint256,uint256)': TypedContractEvent<AddLiquidityEvent.InputTuple, AddLiquidityEvent.OutputTuple, AddLiquidityEvent.OutputObject>;
+      AddLiquidity: TypedContractEvent<AddLiquidityEvent.InputTuple, AddLiquidityEvent.OutputTuple, AddLiquidityEvent.OutputObject>;
     
 
-      'LiquidityAdded(address,uint256,uint256,uint256)': TypedContractEvent<LiquidityAddedEvent.InputTuple, LiquidityAddedEvent.OutputTuple, LiquidityAddedEvent.OutputObject>;
-      LiquidityAdded: TypedContractEvent<LiquidityAddedEvent.InputTuple, LiquidityAddedEvent.OutputTuple, LiquidityAddedEvent.OutputObject>;
-    
-
-      'LiquidityRemoved(address,uint256,uint256,uint256)': TypedContractEvent<LiquidityRemovedEvent.InputTuple, LiquidityRemovedEvent.OutputTuple, LiquidityRemovedEvent.OutputObject>;
-      LiquidityRemoved: TypedContractEvent<LiquidityRemovedEvent.InputTuple, LiquidityRemovedEvent.OutputTuple, LiquidityRemovedEvent.OutputObject>;
+      'RemoveLiquidity(address,uint256,uint256,uint256)': TypedContractEvent<RemoveLiquidityEvent.InputTuple, RemoveLiquidityEvent.OutputTuple, RemoveLiquidityEvent.OutputObject>;
+      RemoveLiquidity: TypedContractEvent<RemoveLiquidityEvent.InputTuple, RemoveLiquidityEvent.OutputTuple, RemoveLiquidityEvent.OutputObject>;
     
 
       'Swap(address,address,uint256,uint256)': TypedContractEvent<SwapEvent.InputTuple, SwapEvent.OutputTuple, SwapEvent.OutputObject>;

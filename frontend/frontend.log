@@ -1,8 +1,9 @@
 nohup: ignoring input
 
-  VITE v5.4.21  ready in 282 ms
+  VITE v5.4.21  ready in 305 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: http://147.182.193.26:5173/
   ➜  Network: http://10.48.0.5:5173/
   ➜  Network: http://10.124.0.2:5173/
+2:34:49 PM [vite] hmr update /src/App.tsx, /src/index.css, /src/components/Liquidity.tsx, /src/components/Admin.tsx, /src/components/PriceChart.tsx

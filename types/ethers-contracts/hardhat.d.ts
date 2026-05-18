@@ -16,7 +16,6 @@ getContractFactory(name: 'FeeSubsidyPool', signerOrOptions?: ethers.Signer | Fac
 getContractFactory(name: 'IEligibilityOracle', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IEligibilityOracle__factory>
 getContractFactory(name: 'IRelayerRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IRelayerRegistry__factory>
 getContractFactory(name: 'MockERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockERC20__factory>
-getContractFactory(name: 'IFeeCollector', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IFeeCollector__factory>
 getContractFactory(name: 'Pool', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.Pool__factory>
 getContractFactory(name: 'RelayerRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.RelayerRegistry__factory>
 getContractFactory(name: 'Router', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.Router__factory>
@@ -33,7 +32,6 @@ getContractAt(name: 'FeeSubsidyPool', address: string | ethers.Addressable, sign
 getContractAt(name: 'IEligibilityOracle', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IEligibilityOracle>
 getContractAt(name: 'IRelayerRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IRelayerRegistry>
 getContractAt(name: 'MockERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockERC20>
-getContractAt(name: 'IFeeCollector', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IFeeCollector>
 getContractAt(name: 'Pool', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.Pool>
 getContractAt(name: 'RelayerRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.RelayerRegistry>
 getContractAt(name: 'Router', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.Router>
@@ -50,7 +48,6 @@ deployContract(name: 'FeeSubsidyPool', signerOrOptions?: ethers.Signer | DeployC
 deployContract(name: 'IEligibilityOracle', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IEligibilityOracle>
 deployContract(name: 'IRelayerRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IRelayerRegistry>
 deployContract(name: 'MockERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockERC20>
-deployContract(name: 'IFeeCollector', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IFeeCollector>
 deployContract(name: 'Pool', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Pool>
 deployContract(name: 'RelayerRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.RelayerRegistry>
 deployContract(name: 'Router', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Router>
@@ -67,7 +64,6 @@ deployContract(name: 'FeeSubsidyPool', args: any[], signerOrOptions?: ethers.Sig
 deployContract(name: 'IEligibilityOracle', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IEligibilityOracle>
 deployContract(name: 'IRelayerRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IRelayerRegistry>
 deployContract(name: 'MockERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockERC20>
-deployContract(name: 'IFeeCollector', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IFeeCollector>
 deployContract(name: 'Pool', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Pool>
 deployContract(name: 'RelayerRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.RelayerRegistry>
 deployContract(name: 'Router', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Router>

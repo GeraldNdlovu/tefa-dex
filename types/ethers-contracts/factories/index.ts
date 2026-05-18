@@ -2,10 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as feeSubsidyPoolSol from './FeeSubsidyPool.sol/index.js';
-export * as poolSol from './Pool.sol/index.js';
 export { EligibilityOracle__factory } from './EligibilityOracle__factory.js';
 export { FeeCollector__factory } from './FeeCollector__factory.js';
 export { MockERC20__factory } from './MockERC20__factory.js';
+export { Pool__factory } from './Pool__factory.js';
 export { RelayerRegistry__factory } from './RelayerRegistry__factory.js';
 export { Router__factory } from './Router__factory.js';
 export { SenderTester__factory } from './SenderTester__factory.js';
