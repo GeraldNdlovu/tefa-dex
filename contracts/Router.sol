@@ -29,6 +29,7 @@ contract Router is ERC2771Context {
     function addLiquidity(address tokenA, address tokenB, uint256 amountA, uint256 amountB) external {
         address pool = getPool[tokenA][tokenB];
         require(pool != address(0), "Pool not found");
+        require(block.timestamp <= deadline, "Expired");
         IERC20(tokenA).transferFrom(_msgSender(), address(this), amountA);
         IERC20(tokenB).transferFrom(_msgSender(), address(this), amountB);
         IERC20(tokenA).approve(pool, amountA);
@@ -39,12 +40,14 @@ contract Router is ERC2771Context {
     function removeLiquidity(address tokenA, address tokenB, uint256 shares) external {
         address pool = getPool[tokenA][tokenB];
         require(pool != address(0), "Pool not found");
+        require(block.timestamp <= deadline, "Expired");
         Pool(pool).removeLiquidityFor(shares, _msgSender());
     }
 
-    function swap(address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256 amountOut) {
+    function swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint256 deadline) external returns (uint256 amountOut) {
         address pool = getPool[tokenIn][tokenOut];
         require(pool != address(0), "Pool not found");
+        require(block.timestamp <= deadline, "Expired");
         IERC20(tokenIn).transferFrom(_msgSender(), address(this), amountIn);
         IERC20(tokenIn).approve(pool, amountIn);
         amountOut = Pool(pool).swap(tokenIn, amountIn);

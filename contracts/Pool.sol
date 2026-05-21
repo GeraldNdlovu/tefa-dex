@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract Pool {
+contract Pool is ReentrancyGuard {
     address public token0;
     address public token1;
     uint256 public reserve0;
@@ -46,7 +47,7 @@ contract Pool {
         return a < b ? a : b;
     }
 
-    function addLiquidityFor(uint256 amount0, uint256 amount1, address user) external onlyRouter {
+    function addLiquidityFor(uint256 amount0, uint256 amount1, address user) external onlyRouter nonReentrant {
         require(amount0 > 0 && amount1 > 0, "Amounts > 0");
         IERC20(token0).transferFrom(msg.sender, address(this), amount0);
         IERC20(token1).transferFrom(msg.sender, address(this), amount1);
@@ -69,7 +70,7 @@ contract Pool {
         emit AddLiquidity(user, amount0, amount1, shares);
     }
 
-    function removeLiquidityFor(uint256 shares, address user) external onlyRouter {
+    function removeLiquidityFor(uint256 shares, address user) external onlyRouter nonReentrant {
         require(shares > 0, "Shares > 0");
         require(lpShares[user] >= shares, "Insufficient shares");
 
@@ -93,7 +94,7 @@ contract Pool {
         return (amountInWithFee * reserveOut) / (reserveIn + amountInWithFee);
     }
 
-    function swap(address tokenIn, uint256 amountIn) external returns (uint256 amountOut) {
+    function swap(address tokenIn, uint256 amountIn) external nonReentrant returns (uint256 amountOut) {
         require(tokenIn == token0 || tokenIn == token1, "Invalid token");
         (uint256 reserveIn, uint256 reserveOut) = tokenIn == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
         amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
