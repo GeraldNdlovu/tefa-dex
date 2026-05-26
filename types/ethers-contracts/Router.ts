@@ -15,7 +15,7 @@ encodeFunctionData(functionFragment: 'createPool', values: [AddressLike, Address
 encodeFunctionData(functionFragment: 'getPool', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isTrustedForwarder', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'removeLiquidity', values: [AddressLike, AddressLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'swap', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'swap', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'addLiquidity', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createPool', data: BytesLike): Result;
@@ -113,7 +113,7 @@ decodeFunctionResult(functionFragment: 'swap', data: BytesLike): Result;
 
     
     swap: TypedContractMethod<
-      [tokenIn: AddressLike, tokenOut: AddressLike, amountIn: BigNumberish, ],
+      [tokenIn: AddressLike, tokenOut: AddressLike, amountIn: BigNumberish, amountOutMin: BigNumberish, deadline: BigNumberish, ],
       [bigint],
       'nonpayable'
     >
@@ -148,7 +148,7 @@ getFunction(nameOrSignature: 'removeLiquidity'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'swap'): TypedContractMethod<
-      [tokenIn: AddressLike, tokenOut: AddressLike, amountIn: BigNumberish, ],
+      [tokenIn: AddressLike, tokenOut: AddressLike, amountIn: BigNumberish, amountOutMin: BigNumberish, deadline: BigNumberish, ],
       [bigint],
       'nonpayable'
     >;

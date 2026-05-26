@@ -9,6 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@biconomy/account": "^4.5.7",
+    "@biconomy/bundler": "^3.1.4",
+    "@biconomy/paymaster": "^3.1.4",
+    "@gelatocloud/gasless": "^0.0.12",
     "chart.js": "^4.5.1",
     "ethers": "^6.10.0",
     "lucide-react": "^1.14.0",

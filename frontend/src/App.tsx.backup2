@@ -3,9 +3,11 @@ import { ethers } from 'ethers';
 import { CONTRACT_ADDRESSES } from './config/contracts';
 import { Liquidity } from './components/Liquidity';
 import { Admin } from './components/Admin';
+import { GaslessTab } from './components/GaslessTab';
 import { ErrorMessage } from './components/ErrorMessage';
-import { GaslessCustom } from './components/GaslessCustom';
-import { ArrowDownUp, Shield, Droplet, Zap } from 'lucide-react';
+import { 
+  ArrowDownUp, Zap, Shield, Droplet 
+} from 'lucide-react';
 
 declare global {
   interface Window {
@@ -13,9 +15,21 @@ declare global {
   }
 }
 
-const ERC20_ABI = ["function balanceOf(address account) view returns (uint256)"];
-const ROUTER_ABI = ["function swap(address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256)"];
-const POOL_ABI = ["function getReserves() view returns (uint256, uint256)"];
+const ERC20_ABI = [
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+
+const ROUTER_ABI = [
+  "function swap(address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256)",
+  "function getPool(address tokenA, address tokenB) view returns (address)"
+];
+
+const POOL_ABI = [
+  "function getReserves() view returns (uint256, uint256)"
+];
 
 function App() {
   const [account, setAccount] = useState<string>('');
@@ -27,6 +41,7 @@ function App() {
   const [reserves, setReserves] = useState<{ tka: string; tkb: string }>({ tka: '0', tkb: '0' });
   const [swapAmount, setSwapAmount] = useState<string>('');
   const [swapLoading, setSwapLoading] = useState<boolean>(false);
+  // const [isApproved, setIsApproved] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const TOKEN_A = CONTRACT_ADDRESSES.TOKEN_A;
@@ -40,13 +55,17 @@ function App() {
       const tkaContract = new ethers.Contract(TOKEN_A, ERC20_ABI, provider);
       const tkbContract = new ethers.Contract(TOKEN_B, ERC20_ABI, provider);
       const poolContract = new ethers.Contract(POOL_ADDRESS, POOL_ABI, provider);
+      
       const tkaBal = await tkaContract.balanceOf(account);
       const tkbBal = await tkbContract.balanceOf(account);
       const [reserve0, reserve1] = await poolContract.getReserves();
+      
       setTkaBalance(ethers.formatEther(tkaBal));
       setTkbBalance(ethers.formatEther(tkbBal));
       setReserves({ tka: ethers.formatEther(reserve0), tkb: ethers.formatEther(reserve1) });
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   useEffect(() => {
@@ -63,15 +82,29 @@ function App() {
       return;
     }
     try {
-      const browserProvider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await browserProvider.getSigner();
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
       const address = await signer.getAddress();
-      setProvider(browserProvider);
+      
+      setProvider(provider);
       setSigner(signer);
       setAccount(address);
       setError(null);
     } catch (err) {
       setError('Failed to connect wallet');
+    }
+  };
+
+  const approveTokens = async () => {
+    if (!signer || !account) return;
+    try {
+      const tkaContract = new ethers.Contract(TOKEN_A, ERC20_ABI, signer);
+      const tx = await tkaContract.approve(ROUTER_ADDRESS, ethers.parseEther('1000000'));
+      await tx.wait();
+      
+      alert('Approval successful!');
+    } catch (err) {
+      alert('Approval failed');
     }
   };
 
@@ -86,8 +119,13 @@ function App() {
       refreshData();
       setSwapAmount('');
       alert('Swap successful!');
-    } catch (err) {
-      alert('Swap failed');
+    } catch (err: any) {
+      if (err.message.includes('insufficient allowance')) {
+        await approveTokens();
+        await executeSwap();
+      } else {
+        alert('Swap failed');
+      }
     } finally {
       setSwapLoading(false);
     }
@@ -100,7 +138,9 @@ function App() {
           <div className="flex items-center gap-3">
             <Shield className="w-8 h-8 text-purple-400" />
             <h1 className="text-3xl font-bold text-white">TEFA DEX</h1>
+            <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded-full">Gasless</span>
           </div>
+          
           {account ? (
             <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -144,14 +184,14 @@ function App() {
                   <span className="text-white font-semibold">TKA</span>
                 </div>
               </div>
-              <button onClick={executeSwap} disabled={swapLoading || !swapAmount || !account} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 rounded-xl hover:opacity-90 disabled:opacity-50">
+              <button onClick={executeSwap} disabled={swapLoading || !swapAmount || !account} className="w-full bg-purple-600 text-white font-semibold py-3 rounded-xl hover:opacity-90 transition disabled:opacity-50">
                 {swapLoading ? 'Swapping...' : 'Swap'}
               </button>
             </div>
           )}
 
           {activeTab === 'gasless' && (
-            <GaslessCustom account={account} provider={provider} onRefresh={refreshData} />
+            <GaslessTab account={account} signer={signer} onRefresh={refreshData} />
           )}
 
           {activeTab === 'liquidity' && (

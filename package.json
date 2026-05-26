@@ -14,7 +14,8 @@
     "console": "npx hardhat console --network localhost"
   },
   "dependencies": {
-    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0"
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0",
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.0.10",
