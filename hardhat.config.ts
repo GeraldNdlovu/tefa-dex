@@ -1,9 +1,7 @@
-import { defineConfig } from "hardhat/config";
-import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 
-export default defineConfig({
-  plugins: [hardhatToolboxMochaEthers],
-
+const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.24",
     settings: {
@@ -15,17 +13,23 @@ export default defineConfig({
   },
 
   networks: {
-    localhost: {
+    hardhat: {
+      type: "http",
+      chainId: 31337,
       url: "http://127.0.0.1:8545",
     },
-    sepolia: {
-      url: "https://ethereum-sepolia-rpc.publicnode.com",
-      accounts: ["0xc4fa308df2fe8baf409ac497723f15d4f94605acb162e979664bd7154a35965f"],
+    localhost: {
       type: "http",
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
+    },
+    sepolia: {
+      type: "http",
+      url: "https://sepolia.infura.io/v3/7cc54e6c6a2146b1963a922ab3ce5b0c",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 11155111,
     },
   },
+};
 
-  mocha: {
-    timeout: 40000,
-  },
-});
+export default config;

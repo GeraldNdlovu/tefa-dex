@@ -1,0 +1,33 @@
+'npx hardhat clean' running (wd: /code)
+'npx hardhat clean --global' running (wd: /code)
+Problem deserializing hardhat configuration, using defaults: Expecting value: line 1 column 1 (char 0)
+'npx hardhat compile --force' running (wd: /code)
+'npx' returned non-zero exit code 1
+Downloading solc 0.8.24
+stdout: Downloading solc 0.8.24 (WASM build)
+Error HHE902: There was an error while resolving the import "forge-std/Test.sol" from "./test/foundry/PoolTest.t.sol":
+stderr: 
+stderr: The package "forge-std" is not installed.
+stderr: 
+stderr: For more info go to https://hardhat.org/HHE902 or run Hardhat with --show-stack-traces
+Traceback (most recent call last):
+  File "/root/.crytic/bin/slither", line 8, in <module>
+    sys.exit(main())
+  File "/root/.crytic/lib/python3.10/site-packages/slither/__main__.py", line 760, in main
+    main_impl(all_detector_classes=detectors, all_printer_classes=printers)
+  File "/root/.crytic/lib/python3.10/site-packages/slither/__main__.py", line 865, in main_impl
+    ) = process_all(filename, args, detector_classes, printer_classes)
+  File "/root/.crytic/lib/python3.10/site-packages/slither/__main__.py", line 95, in process_all
+    compilations = compile_all(target, **vars(args))
+  File "/root/.crytic/lib/python3.10/site-packages/crytic_compile/crytic_compile.py", line 722, in compile_all
+    compilations.append(CryticCompile(target, **kwargs))
+  File "/root/.crytic/lib/python3.10/site-packages/crytic_compile/crytic_compile.py", line 211, in __init__
+    self._compile(**kwargs)
+  File "/root/.crytic/lib/python3.10/site-packages/crytic_compile/crytic_compile.py", line 633, in _compile
+    self._platform.compile(self, **kwargs)
+  File "/root/.crytic/lib/python3.10/site-packages/crytic_compile/platform/hardhat.py", line 184, in compile
+    hardhat_like_parsing(crytic_compile, self._target, build_directory, hardhat_working_dir)
+  File "/root/.crytic/lib/python3.10/site-packages/crytic_compile/platform/hardhat.py", line 52, in hardhat_like_parsing
+    raise InvalidCompilation(txt)
+crytic_compile.platform.exceptions.InvalidCompilation: Compilation failed. Can you run build command?
+/code/artifacts/build-info is not a directory.
