@@ -52,7 +52,7 @@ export async function biconomyGaslessSwap(
   const signature = await signer.signTypedData(domain, types, message);
 
   // Use Biconomy's gasless API
-  const response = await fetch('https://api.biconomy.io/api/v1/meta-tx/relay', {
+  const response = await fetch('https://api.biconomy.io/api/v1/meta-tx/api/gasless/submit', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

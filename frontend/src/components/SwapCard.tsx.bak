@@ -168,7 +168,7 @@ export function SwapCard() {
       );
       
       // In production, you would send this to your relayer API:
-      // await fetch('/api/relay', {
+      // await fetch('/api/api/gasless/submit', {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify({ signature, domain, types, value })

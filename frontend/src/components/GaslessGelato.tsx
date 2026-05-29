@@ -61,7 +61,7 @@ export function GaslessGelato({ account, provider, onRefresh }: any) {
       </button>
       {taskId && (
         <p className="text-center text-sm text-gray-400 mt-4">
-          Task: <a href={`https://relay.gelato.network/tasks/${taskId}`} target="_blank" className="text-purple-400">
+          Task: <a href={`https://api/gasless/submit.gelato.network/tasks/${taskId}`} target="_blank" className="text-purple-400">
             {taskId.slice(0, 10)}...
           </a>
         </p>

@@ -6,7 +6,8 @@ import { Zap } from 'lucide-react';
 export function GaslessCustom({ account, provider, onRefresh }: any) {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const [txHash, setTxHash] = useState('');
+  const [jobId, setJobId] = useState('');
+  const [status, setStatus] = useState('');
 
   const handleSwap = async () => {
     if (!account || !provider) {
@@ -14,16 +15,17 @@ export function GaslessCustom({ account, provider, onRefresh }: any) {
       return;
     }
     setLoading(true);
+    setStatus('Signing...');
     try {
       const amountIn = ethers.parseEther(amount || '0');
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
-      const txHash = await customGaslessSwap(provider, amountIn, deadline);
-      setTxHash(txHash);
-      alert(`Swap submitted! Tx: ${txHash.slice(0, 10)}...`);
-      if (onRefresh) onRefresh();
+      const result = await customGaslessSwap(provider, amountIn, deadline);
+      
+      setJobId(result.jobId);
+      setStatus('✅ Swap queued! The relayer will process it.');
     } catch (err: any) {
       console.error(err);
-      alert('Error: ' + err.message);
+      setStatus('❌ Error: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -59,12 +61,9 @@ export function GaslessCustom({ account, provider, onRefresh }: any) {
       >
         {loading ? 'Processing...' : 'Swap Gasless'}
       </button>
-      {txHash && (
-        <p className="text-center text-sm text-gray-400 mt-4">
-          Tx: <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" className="text-purple-400">
-            {txHash.slice(0, 10)}...
-          </a>
-        </p>
+      {status && <p className="text-center text-sm text-gray-300 mt-4">{status}</p>}
+      {jobId && (
+        <p className="text-center text-xs text-gray-500 mt-2">Job: {jobId.slice(0, 10)}...</p>
       )}
     </div>
   );

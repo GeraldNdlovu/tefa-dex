@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 
-const RELAYER_URL = 'https://dex.147.182.193.26.nip.io/relay';
+const RELAYER_URL = 'https://dex.147.182.193.26.nip.io/api/gasless/submit';
 const FORWARDER_ADDRESS = '0x9aecE1447491a85f936A20139c1Eb8C4Bd74b86d';
 
 const getDomain = (chainId: number) => ({
