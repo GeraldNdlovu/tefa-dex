@@ -1,298 +1,220 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { CONTRACT_ADDRESSES, RELAYER_URL } from '../config/contracts';
+import { ArrowDownUp, ArrowRight, Loader2, ExternalLink, RefreshCw } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
 
-declare global {
-  interface Window {
-    ethereum: any;
-  }
+interface SwapCardProps {
+  account: string | null;
+  provider: any;
+  onRefresh?: () => void;
 }
 
-const ERC20_ABI = [
-  "function approve(address spender, uint256 amount) returns (bool)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)"
-];
+export function SwapCard({ account, provider, onRefresh }: SwapCardProps) {
+  const [fromAmount, setFromAmount] = useState('');
+  const [toAmount, setToAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [fromToken, setFromToken] = useState('TKA');
+  const [toToken, setToToken] = useState('TKB');
+  const [txHash, setTxHash] = useState('');
+  const [jobId, setJobId] = useState('');
+  const [status, setStatus] = useState('');
+  const [exchangeRate, setExchangeRate] = useState(0.137);
 
-const ROUTER_ABI = [
-  "function swap(address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256)",
-  "function getPool(address tokenA, address tokenB) view returns (address)"
-];
+  const TOKEN_ADDRESSES = {
+    TKA: '0xe64F6E38F004eDE64756dd62d4F10Ce28721e155',
+    TKB: '0xa2a5CF99ae48dfAF190186f734142C6D17E887B9'
+  };
 
-const FORWARDER_ABI = [
-  "function nonces(address) view returns (uint256)"
-];
+  const flipTokens = () => {
+    setFromToken(toToken);
+    setToToken(fromToken);
+    setFromAmount('');
+    setToAmount('');
+    setExchangeRate(1 / exchangeRate);
+  };
 
-export const SwapCard: React.FC = () => {
-  const [account, setAccount] = useState<string>('');
-  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [signer, setSigner] = useState<ethers.Signer | null>(null);
-  const [tkaBalance, setTkaBalance] = useState<string>('0');
-  const [tkbBalance, setTkbBalance] = useState<string>('0');
-  const [ethBalance, setEthBalance] = useState<string>('0');
-  const [amount, setAmount] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [useGasless, setUseGasless] = useState<boolean>(false);
-  const [routerApproved, setRouterApproved] = useState<boolean>(false);
+  const estimateOutput = (input: string) => {
+    if (!input || parseFloat(input) === 0) {
+      setToAmount('');
+      return;
+    }
+    const output = (parseFloat(input) * exchangeRate).toFixed(6);
+    setToAmount(output);
+  };
 
   useEffect(() => {
-    checkConnection();
-  }, []);
-
-  const checkConnection = async () => {
-    if (window.ethereum) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      setProvider(provider);
-      const accounts = await provider.listAccounts();
-      if (accounts.length > 0) {
-        const signer = await provider.getSigner();
-        setSigner(signer);
-        const address = await signer.getAddress();
-        setAccount(address);
-        await updateBalances(address, provider);
-        await checkGaslessEligibility(address, provider);
-        await checkAllowance(address, provider);
-      }
-    }
-  };
-
-  const checkGaslessEligibility = async (address: string, provider: ethers.BrowserProvider) => {
-    const balance = await provider.getBalance(address);
-    const ethBalanceNum = parseFloat(ethers.formatEther(balance));
-    setEthBalance(ethBalanceNum.toFixed(4));
-    setUseGasless(ethBalanceNum < 0.001);
-  };
-
-  const checkAllowance = async (address: string, provider: ethers.BrowserProvider) => {
-    const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, provider);
-    const allowance = await tokenA.allowance(address, CONTRACT_ADDRESSES.GASLESS_ROUTER);
-    setRouterApproved(allowance >= ethers.parseEther("10"));
-  };
-
-  const updateBalances = async (address: string, provider: ethers.BrowserProvider) => {
-    const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, provider);
-    const tokenB = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_B, ERC20_ABI, provider);
-    
-    const tkaBalance = await tokenA.balanceOf(address);
-    const tkbBalance = await tokenB.balanceOf(address);
-    const ethBal = await provider.getBalance(address);
-    
-    setTkaBalance(ethers.formatEther(tkaBalance));
-    setTkbBalance(ethers.formatEther(tkbBalance));
-    setEthBalance(ethers.formatEther(ethBal));
-  };
-
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        setProvider(provider);
-        const signer = await provider.getSigner();
-        setSigner(signer);
-        const address = await signer.getAddress();
-        setAccount(address);
-        await updateBalances(address, provider);
-        await checkGaslessEligibility(address, provider);
-        await checkAllowance(address, provider);
-      } catch (error) {
-        console.error("Failed to connect:", error);
-      }
-    } else {
-      alert("Please install MetaMask!");
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!signer) return;
-    setLoading(true);
-    try {
-      const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, signer);
-      const approveAmount = ethers.parseEther("10000");
-      const approveTx = await tokenA.approve(CONTRACT_ADDRESSES.GASLESS_ROUTER, approveAmount);
-      await approveTx.wait();
-      await checkAllowance(account, provider!);
-      alert("Router approved!");
-    } catch (error) {
-      console.error("Approval failed:", error);
-      alert("Approval failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+    estimateOutput(fromAmount);
+  }, [fromAmount, exchangeRate]);
 
   const handleSwap = async () => {
-    if (!signer || !amount) return;
+    if (!account || !provider) {
+      toast.error('Connect wallet first');
+      return;
+    }
+    
+    if (!fromAmount || parseFloat(fromAmount) <= 0) {
+      toast.error('Enter a valid amount');
+      return;
+    }
+    
     setLoading(true);
+    setStatus('signing');
+    
+    const toastId = toast.loading('Waiting for signature...');
     
     try {
-      const swapAmount = ethers.parseEther(amount);
+      const { customGaslessSwap } = await import('../utils/gasless-custom');
+      const tokenIn = TOKEN_ADDRESSES[fromToken as keyof typeof TOKEN_ADDRESSES];
+      const amountIn = ethers.parseEther(fromAmount);
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 1200);
       
-      // Check allowance
-      const tokenA = new ethers.Contract(CONTRACT_ADDRESSES.TOKEN_A, ERC20_ABI, signer);
-      const allowance = await tokenA.allowance(account, CONTRACT_ADDRESSES.GASLESS_ROUTER);
+      toast.loading('Signing transaction...', { id: toastId });
       
-      if (allowance < swapAmount) {
-        alert("Please approve the router first");
-        setLoading(false);
-        return;
-      }
+      const result = await customGaslessSwap(provider, amountIn, deadline);
       
-      if (useGasless) {
-        await handleGaslessSwap(swapAmount);
-      } else {
-        // Use Gasless Router for regular swap too
-        const router = new ethers.Contract(CONTRACT_ADDRESSES.GASLESS_ROUTER, ROUTER_ABI, signer);
-        const tx = await router.swap(
-          CONTRACT_ADDRESSES.TOKEN_A,
-          CONTRACT_ADDRESSES.TOKEN_B,
-          swapAmount
-        );
-        await tx.wait();
-      }
+      setJobId(result.jobId);
+      setStatus('queued');
+      toast.success('Swap queued! Processing...', { id: toastId, duration: 2000 });
+      toast.loading('Relayer processing your swap...', { id: toastId });
       
-      await updateBalances(account, provider!);
-      setAmount('');
-      alert("Swap successful!");
-    } catch (error) {
-      console.error("Swap failed:", error);
-      alert("Swap failed: " + (error as Error).message);
+      const pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`https://dex.147.182.193.26.nip.io/api/gasless/status/${result.jobId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.state === 'completed' && data.txHash) {
+              setTxHash(data.txHash);
+              setStatus('completed');
+              toast.success('Swap confirmed on-chain! 🎉', { id: toastId, duration: 5000 });
+              clearInterval(pollInterval);
+              if (onRefresh) onRefresh();
+            } else if (data.state === 'failed') {
+              setStatus('failed');
+              toast.error(`Swap failed: ${data.failedReason || 'Unknown error'}`, { id: toastId });
+              clearInterval(pollInterval);
+            }
+          }
+        } catch (err) {}
+      }, 2000);
+      
+    } catch (err: any) {
+      console.error(err);
+      setStatus('failed');
+      toast.error(err.message || 'Swap failed', { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGaslessSwap = async (swapAmount: bigint) => {
-    const forwarder = new ethers.Contract(CONTRACT_ADDRESSES.FORWARDER, FORWARDER_ABI, signer!);
-    const nonce = await forwarder.nonces(account);
-    const userAddress = account;
-    
-    const router = new ethers.Contract(CONTRACT_ADDRESSES.GASLESS_ROUTER, ROUTER_ABI, signer!);
-    const swapData = router.interface.encodeFunctionData("swap", [
-      CONTRACT_ADDRESSES.TOKEN_A,
-      CONTRACT_ADDRESSES.TOKEN_B,
-      swapAmount
-    ]);
-    
-    const domain = {
-      name: "TrustedForwarder",
-      version: "1",
-      chainId: 11155111,
-      verifyingContract: CONTRACT_ADDRESSES.FORWARDER
-    };
-    
-    const types = {
-      ForwardRequest: [
-        { name: "from", type: "address" },
-        { name: "to", type: "address" },
-        { name: "value", type: "uint256" },
-        { name: "gas", type: "uint256" },
-        { name: "nonce", type: "uint256" },
-        { name: "data", type: "bytes" }
-      ]
-    };
-    
-    const message = {
-      from: userAddress,
-      to: CONTRACT_ADDRESSES.GASLESS_ROUTER,
-      value: 0,
-      gas: 500000,
-      nonce: nonce,
-      data: swapData
-    };
-    
-    const signature = await (signer as any).signTypedData(domain, types, message);
-    
-    const response = await fetch(RELAYER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: message.from,
-        to: message.to,
-        value: message.value.toString(),
-        gas: message.gas.toString(),
-        nonce: message.nonce.toString(),
-        data: message.data,
-        signature: signature
-      })
-    });
-    
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error);
-    }
+  const getStatusBadge = () => {
+    if (status === 'signing') return { text: 'Sign in wallet', color: 'bg-yellow-500/20 text-yellow-400' };
+    if (status === 'queued') return { text: 'Processing', color: 'bg-blue-500/20 text-blue-400' };
+    if (status === 'completed') return { text: 'Completed', color: 'bg-green-500/20 text-green-400' };
+    if (status === 'failed') return { text: 'Failed', color: 'bg-red-500/20 text-red-400' };
+    return null;
   };
 
+  const badge = getStatusBadge();
+
   return (
-    <div className="max-w-md mx-auto mt-10 bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl p-6">
-      <h2 className="text-2xl font-bold text-center mb-6">Swap Tokens</h2>
+    <div className="glass-card p-6">
+      <Toaster position="top-right" />
       
-      {!account ? (
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <ArrowDownUp className="w-5 h-5 text-purple-400" />
+          <h2 className="text-white font-semibold">Swap Tokens</h2>
+          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full">⚡ 0 Gas</span>
+        </div>
+        {badge && (
+          <span className={`text-xs px-2 py-1 rounded-full ${badge.color}`}>{badge.text}</span>
+        )}
+      </div>
+
+      {/* From Input */}
+      <div className="bg-gray-800/50 rounded-2xl p-4 mb-3">
+        <div className="flex justify-between text-sm text-gray-400 mb-2">
+          <span>You pay</span>
+          <button className="text-xs text-purple-400 hover:text-purple-300">MAX</button>
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            value={fromAmount}
+            onChange={(e) => setFromAmount(e.target.value)}
+            placeholder="0.0"
+            className="flex-1 bg-transparent text-2xl text-white outline-none"
+            disabled={loading}
+          />
+          <div className="flex items-center gap-2 bg-gray-700/50 rounded-xl px-3 py-2">
+            <span className="font-semibold text-white">{fromToken}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Swap Arrow with Flip Button */}
+      <div className="flex justify-center -my-2 relative z-10">
         <button
-          onClick={connectWallet}
-          className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+          onClick={flipTokens}
+          className="bg-gray-700 rounded-full p-2 hover:bg-gray-600 transition-all rotate-90 hover:rotate-0 duration-300"
         >
-          Connect Wallet
+          <ArrowDownUp className="w-4 h-4 text-gray-300" />
         </button>
-      ) : (
-        <>
-          <div className="mb-4 p-3 bg-gray-100 rounded-lg">
-            <p className="text-sm text-gray-600">Connected: {account.slice(0, 6)}...{account.slice(-4)}</p>
-            <p className="text-sm text-gray-600">TKA: {parseFloat(tkaBalance).toFixed(2)}</p>
-            <p className="text-sm text-gray-600">TKB: {parseFloat(tkbBalance).toFixed(2)}</p>
-            <p className="text-sm text-gray-600">ETH: {parseFloat(ethBalance).toFixed(4)}</p>
-            {!routerApproved && (
-              <button
-                onClick={handleApprove}
-                disabled={loading}
-                className="mt-2 w-full bg-yellow-500 text-white py-1 px-2 rounded text-sm hover:bg-yellow-600"
-              >
-                Approve Router First
-              </button>
-            )}
-            {useGasless && routerApproved && (
-              <p className="text-sm text-green-600 font-semibold mt-1">
-                ⚡ Gas-free mode active
-              </p>
-            )}
+      </div>
+
+      {/* To Input */}
+      <div className="bg-gray-800/50 rounded-2xl p-4 mb-6">
+        <div className="flex justify-between text-sm text-gray-400 mb-2">
+          <span>You receive</span>
+          <span className="text-xs">Rate: 1 {fromToken} ≈ {exchangeRate.toFixed(6)} {toToken}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            value={toAmount}
+            readOnly
+            placeholder="0.0"
+            className="flex-1 bg-transparent text-2xl text-white outline-none"
+          />
+          <div className="flex items-center gap-2 bg-gray-700/50 rounded-xl px-3 py-2">
+            <span className="font-semibold text-white">{toToken}</span>
           </div>
-          
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Amount (TKA)
-            </label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg"
-              placeholder="0.0"
-              step="0.1"
-            />
-          </div>
-          
-          <button
-            onClick={handleSwap}
-            disabled={loading || !amount || !routerApproved}
-            className={`w-full py-2 px-4 rounded-lg text-white ${
-              loading || !amount || !routerApproved
-                ? 'bg-gray-400 cursor-not-allowed'
-                : useGasless
-                ? 'bg-green-500 hover:bg-green-600'
-                : 'bg-blue-500 hover:bg-blue-600'
-            }`}
+        </div>
+      </div>
+
+      {/* Swap Button */}
+      <button
+        onClick={handleSwap}
+        disabled={loading || !fromAmount || !account}
+        className="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+      >
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            {status === 'signing' ? 'Awaiting Signature...' : 'Processing...'}
+          </span>
+        ) : (
+          `Swap ${fromToken} → ${toToken}`
+        )}
+      </button>
+
+      {txHash && (
+        <div className="mt-4 text-center">
+          <a
+            href={`https://sepolia.etherscan.io/tx/${txHash}`}
+            target="_blank"
+            className="inline-flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300"
           >
-            {loading ? 'Processing...' : routerApproved ? (useGasless ? '⚡ Swap (Gas-Free)' : 'Swap') : 'Approve First'}
-          </button>
-          
-          {useGasless && routerApproved && (
-            <p className="text-xs text-green-600 text-center mt-3">
-              🔥 You have low ETH balance. Using gas-free transaction.
-            </p>
-          )}
-        </>
+            View on Etherscan <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+      )}
+
+      {!account && (
+        <p className="text-center text-xs text-gray-500 mt-4">
+          Connect wallet to start gasless trading
+        </p>
       )}
     </div>
   );
-};
+}

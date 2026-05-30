@@ -1,0 +1,733 @@
+import express from 'express';
+import { Queue } from 'bullmq';
+import Redis from 'ioredis';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { ethers } from 'ethers';
+import { z } from 'zod';
+import { SiweMessage } from 'siwe';
+
+dotenv.config();
+
+const app = express();
+
+// Security headers
+app.use(helmet({
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: { action: 'deny' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  crossOriginEmbedderPolicy: true,
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://dex.147.182.193.26.nip.io", "wss://*.nip.io", "https://sepolia.infura.io"],
+      frameAncestors: ["'none'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+}));
+
+app.use(cors({
+  origin: ['https://dex.147.182.193.26.nip.io', 'http://localhost:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+}));
+app.use(express.json({ limit: '100kb' }));
+app.use(cookieParser());
+app.set('trust proxy', 1);
+
+// Rate limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    return forwarded ? forwarded.split(',')[0] : req.ip;
+  },
+  message: { error: 'Too many authentication attempts. Try again later.' }
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  keyGenerator: (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    return forwarded ? forwarded.split(',')[0] : req.ip;
+  },
+  message: { error: 'Too many requests. Try again later.' }
+});
+
+const gaslessLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  keyGenerator: (req) => {
+    const wallet = req.body?.user;
+    return wallet || (req.headers['x-forwarded-for']?.split(',')[0] || req.ip);
+  },
+  message: { error: 'Too many gasless swap requests. Try again later.' }
+});
+
+// Validation schemas
+const SwapSchema = z.object({
+  user: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  tokenIn: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  amountIn: z.string().regex(/^\d+$/),
+  tokenOut: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  minOut: z.string().regex(/^\d+$/),
+  relayerFeeAmount: z.string().regex(/^\d+$/),
+  nonce: z.string().regex(/^\d+$/),
+  deadline: z.string().regex(/^\d+$/)
+});
+
+const WithdrawSchema = z.object({
+  amount: z.string().regex(/^\d*\.?\d+$/),
+  to: z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform(s => s.toLowerCase()),
+  reason: z.string().max(500).optional()
+});
+
+const LoginSchema = z.object({
+  wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform(s => s.toLowerCase()),
+  signature: z.string().min(1),
+  message: z.string().min(1)
+});
+
+const NonceSchema = z.object({
+  wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/).transform(s => s.toLowerCase())
+});
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+  retryStrategy: (times) => Math.min(times * 50, 2000),
+  password: process.env.REDIS_PASSWORD,
+  tls: process.env.REDIS_TLS === 'true' ? {} : undefined
+});
+
+const queue = new Queue('tefa-gasless', { connection: redis });
+
+// ============ Admin Permissions (Governance Contract Source) ============
+// In production, this reads from a deployed governance contract
+// For now, using environment-based config with multisig requirement
+const GOVERNANCE_CONTRACT_ADDRESS = process.env.GOVERNANCE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+
+async function getAdminPermissions(wallet) {
+  // TODO: Replace with actual contract call
+  // const contract = new ethers.Contract(GOVERNANCE_CONTRACT_ADDRESS, GOVERNANCE_ABI, provider);
+  // return await contract.getPermissions(wallet);
+  
+  // For testnet, using allowlist with warning
+  const ALLOWLIST = {
+  '0x46980bc901a04b9ad24e86a4d76ecd7c45df6ca4': {
+    permissions: [
+      'admin.access',
+      'treasury.view', 'treasury.manage',
+      'pools.view', 'pools.manage',
+      'fees.view', 'fees.edit',
+      'governance.view', 'governance.create', 'governance.execute',
+      'tokens.view', 'tokens.approve',
+      'users.view',
+      'settings.view', 'settings.edit',
+      'relayer.view', 'relayer.manage',
+      'logs.view'
+    ]
+  },
+      'admin.access',
+      'treasury.view',
+      'pools.view',
+      'relayer.view',
+      'logs.view'
+    ]
+  },
+    '0xa35dcfb812fb9d9df1f59e45b72abc94683a9734': {
+      permissions: [
+        'admin.access',
+        'treasury.view', 'treasury.manage',
+        'pools.view', 'pools.manage',
+        'fees.view', 'fees.edit',
+        'governance.view', 'governance.create', 'governance.execute',
+        'tokens.view', 'tokens.approve',
+        'users.view',
+        'settings.view', 'settings.edit',
+        'relayer.view', 'relayer.manage',
+        'logs.view'
+      ]
+    }
+  };
+  
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Production requires governance contract for admin permissions');
+  }
+  
+  return ALLOWLIST[wallet] || null;
+}
+
+const SESSION_DURATION = 15 * 60 * 1000;
+const ABSOLUTE_SESSION_DURATION = 8 * 60 * 60 * 1000;
+
+// Generate nonce using SIWE library
+app.post('/api/auth/nonce', authLimiter, async (req, res) => {
+  try {
+    const { wallet } = NonceSchema.parse(req.body);
+    
+    const nonce = crypto.randomBytes(32).toString('hex');
+    const issuedAt = new Date().toISOString();
+    const expirationTime = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    
+    const siweMessage = new SiweMessage({
+      domain: 'dex.147.182.193.26.nip.io',
+      address: wallet,
+      statement: 'Sign in to TEFA DEX Admin Dashboard',
+      uri: 'https://dex.147.182.193.26.nip.io',
+      version: '1',
+      chainId: 11155111,
+      nonce: nonce,
+      issuedAt: issuedAt,
+      expirationTime: expirationTime,
+      resources: ['https://dex.147.182.193.26.nip.io/admin', 'https://dex.147.182.193.26.nip.io/api/admin']
+    });
+    
+    const message = siweMessage.prepareMessage();
+    
+    await redis.set(`nonce:${wallet}`, JSON.stringify({ 
+      nonce, 
+      expirationTime, 
+      message,
+      issuedAt,
+      siweData: siweMessage
+    }), 'EX', 300);
+    
+    res.json({ nonce, message });
+  } catch (err) {
+    res.status(400).json({ error: err.errors?.[0]?.message || 'Invalid request' });
+  }
+});
+
+// Atomic session validation script
+const validateAndExtendSessionScript = `
+  local data = redis.call('get', KEYS[1])
+  if not data then return nil end
+  local session = cjson.decode(data)
+  local now = tonumber(ARGV[1])
+  local sessionDuration = tonumber(ARGV[2])
+  local absoluteDuration = tonumber(ARGV[3])
+  
+  -- Check absolute expiry first
+  if now > session.absoluteExpiresAt then
+    redis.call('del', KEYS[1])
+    redis.call('del', KEYS[2])
+    return nil
+  end
+  
+  -- Check inactivity expiry
+  if now > session.expiresAt then
+    redis.call('del', KEYS[1])
+    redis.call('del', KEYS[2])
+    return nil
+  end
+  
+  -- Extend session
+  session.lastActivity = now
+  session.expiresAt = now + sessionDuration
+  redis.call('set', KEYS[1], cjson.encode(session), 'EX', absoluteDuration / 1000)
+  
+  return cjson.encode(session)
+`;
+
+// Atomic withdrawal limit check script
+const checkAndUpdateDailyLimitScript = `
+  local key = KEYS[1]
+  local amount = tonumber(ARGV[1])
+  local limit = tonumber(ARGV[2])
+  local ttl = tonumber(ARGV[3])
+  
+  local current = redis.call('get', key)
+  current = current and tonumber(current) or 0
+  
+  if current + amount > limit then
+    return nil
+  end
+  
+  redis.call('set', key, current + amount, 'EX', ttl)
+  return current + amount
+`;
+
+// Atomic nonce reservation script
+const reserveNonceScript = `
+  local key = KEYS[1]
+  local nonce = ARGV[1]
+  local ttl = tonumber(ARGV[2])
+  
+  if redis.call('exists', key) == 1 then
+    return nil
+  end
+  
+  redis.call('set', key, nonce, 'NX', 'EX', ttl)
+  return 'OK'
+`;
+
+// Verify SIWE signature and create session
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  try {
+    const { wallet, signature, message } = LoginSchema.parse(req.body);
+    const lowerWallet = wallet;
+    
+    // Clear any existing session first (fixation protection)
+    const existingSession = req.cookies.admin_session;
+    if (existingSession) {
+      await redis.del(`session:${existingSession}`);
+      await redis.del(`csrf:${existingSession}`);
+    }
+    res.clearCookie('admin_session');
+    res.clearCookie('X-CSRF-Token');
+    
+    const nonceData = await redis.get(`nonce:${lowerWallet}`);
+    if (!nonceData) {
+      return res.status(401).json({ error: 'Nonce expired. Request a new nonce.' });
+    }
+    
+    const { siweData, expirationTime } = JSON.parse(nonceData);
+    
+    if (new Date(expirationTime) < new Date()) {
+      await redis.del(`nonce:${lowerWallet}`);
+      return res.status(401).json({ error: 'Nonce expired' });
+    }
+    
+    const siweMessage = new SiweMessage(message);
+    
+    try {
+      await siweMessage.verify({ signature, nonce: siweData.nonce });
+    } catch (err) {
+      await redis.lpush('audit:log', JSON.stringify({
+        action: 'admin.login.failed',
+        actor: lowerWallet,
+        reason: err.message,
+        timestamp: Date.now(),
+        ip: req.headers['x-forwarded-for']?.split(',')[0] || req.ip
+      }));
+      await redis.ltrim('audit:log', 0, 9999);
+      return res.status(401).json({ error: 'SIWE verification failed' });
+    }
+    
+    if (siweMessage.address.toLowerCase() !== lowerWallet) {
+      return res.status(401).json({ error: 'Address mismatch' });
+    }
+    
+    const admin = await getAdminPermissions(lowerWallet);
+    if (!admin) {
+      await redis.lpush('audit:log', JSON.stringify({
+        action: 'admin.login.unauthorized',
+        actor: lowerWallet,
+        timestamp: Date.now(),
+        ip: req.headers['x-forwarded-for']?.split(',')[0] || req.ip
+      }));
+      await redis.ltrim('audit:log', 0, 9999);
+      return res.status(403).json({ error: 'Wallet not authorized for admin access' });
+    }
+    
+    const sessionToken = crypto.randomBytes(64).toString('hex');
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    const now = Date.now();
+    
+    const sessionData = {
+      wallet: lowerWallet,
+      permissions: admin.permissions,
+      csrfToken,
+      createdAt: now,
+      lastActivity: now,
+      expiresAt: now + SESSION_DURATION,
+      absoluteExpiresAt: now + ABSOLUTE_SESSION_DURATION
+    };
+    
+    await redis.set(`session:${sessionToken}`, JSON.stringify(sessionData), 'EX', Math.floor(ABSOLUTE_SESSION_DURATION / 1000));
+    await redis.set(`csrf:${sessionToken}`, csrfToken, 'EX', Math.floor(ABSOLUTE_SESSION_DURATION / 1000));
+    await redis.del(`nonce:${lowerWallet}`);
+    
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.socket.remoteAddress;
+    
+    await redis.lpush('audit:log', JSON.stringify({
+      action: 'admin.login.success',
+      actor: lowerWallet,
+      timestamp: now,
+      sessionId: sessionToken.slice(0, 16),
+      ip: clientIp,
+      userAgent: req.headers['user-agent']
+    }));
+    await redis.ltrim('audit:log', 0, 9999);
+    
+    res.cookie('admin_session', sessionToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: ABSOLUTE_SESSION_DURATION,
+      path: '/'
+    });
+    
+    res.cookie('X-CSRF-Token', csrfToken, {
+      httpOnly: false,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: ABSOLUTE_SESSION_DURATION,
+      path: '/'
+    });
+    
+    res.json({
+      permissions: admin.permissions,
+      expiresAt: sessionData.expiresAt,
+      absoluteExpiresAt: sessionData.absoluteExpiresAt
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.errors?.[0]?.message || 'Invalid request' });
+  }
+});
+
+// Session middleware
+async function authenticateSession(req, res, next) {
+  const sessionToken = req.cookies.admin_session;
+  
+  if (!sessionToken) {
+    return res.status(401).json({ error: 'No session found' });
+  }
+  
+  // CSRF: Only accept header, not cookie
+  const csrfToken = req.headers['x-csrf-token'];
+  if (!csrfToken) {
+    return res.status(403).json({ error: 'CSRF token required in header' });
+  }
+  
+  const storedCsrf = await redis.get(`csrf:${sessionToken}`);
+  if (!storedCsrf || storedCsrf !== csrfToken) {
+    await redis.lpush('audit:log', JSON.stringify({
+      action: 'admin.csrf.failed',
+      actor: 'unknown',
+      timestamp: Date.now(),
+      ip: req.headers['x-forwarded-for']?.split(',')[0] || req.ip
+    }));
+    await redis.ltrim('audit:log', 0, 9999);
+    return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+  
+  const now = Date.now();
+  const result = await redis.eval(validateAndExtendSessionScript, 2, 
+    `session:${sessionToken}`, `csrf:${sessionToken}`, 
+    now, SESSION_DURATION, ABSOLUTE_SESSION_DURATION);
+  
+  if (!result) {
+    res.clearCookie('admin_session');
+    res.clearCookie('X-CSRF-Token');
+    return res.status(401).json({ error: 'Invalid or expired session' });
+  }
+  
+  const session = JSON.parse(result);
+  req.session = session;
+  next();
+}
+
+// Get current admin permissions
+app.get('/api/admin/me', apiLimiter, authenticateSession, async (req, res) => {
+  res.json({
+    address: req.session.wallet,
+    permissions: req.session.permissions,
+    authenticated: true,
+    expiresAt: req.session.expiresAt
+  });
+});
+
+// Withdraw request with atomic daily limits and timelock
+const GLOBAL_WITHDRAWAL_LIMIT = ethers.parseEther('100');
+const DAILY_WITHDRAWAL_LIMIT = ethers.parseEther('10');
+const TIMELOCK_DURATION = 48 * 60 * 60 * 1000; // 48 hours
+
+app.post('/api/admin/treasury/withdraw', apiLimiter, authenticateSession, async (req, res) => {
+  try {
+    const { amount, to, reason } = WithdrawSchema.parse(req.body);
+    
+    if (!req.session.permissions.includes('treasury.manage')) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    
+    let amountWei;
+    try {
+      amountWei = ethers.parseEther(amount);
+      if (amountWei <= 0) throw new Error();
+    } catch (err) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+    
+    // Check global treasury limit
+    if (amountWei > GLOBAL_WITHDRAWAL_LIMIT) {
+      return res.status(400).json({ error: `Amount exceeds global treasury limit (${ethers.formatEther(GLOBAL_WITHDRAWAL_LIMIT)} ETH max)` });
+    }
+    
+    // Atomic daily limit check
+    const today = new Date().toISOString().split('T')[0];
+    const dailyKey = `daily_withdrawals:${today}:${req.session.wallet}`;
+    const currentTotal = await redis.eval(checkAndUpdateDailyLimitScript, 1, dailyKey, 
+      parseFloat(amount), parseFloat(ethers.formatEther(DAILY_WITHDRAWAL_LIMIT)), 86400);
+    
+    if (currentTotal === null) {
+      return res.status(400).json({ error: `Daily withdrawal limit exceeded. Max ${ethers.formatEther(DAILY_WITHDRAWAL_LIMIT)} ETH per day.` });
+    }
+    
+    const requestId = crypto.randomBytes(16).toString('hex');
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.socket.remoteAddress;
+    const timelockExpiry = Date.now() + TIMELOCK_DURATION;
+    
+    const withdrawalRequest = {
+      id: requestId,
+      actor: req.session.wallet,
+      amount,
+      amountWei: amountWei.toString(),
+      to,
+      reason: reason || 'No reason provided',
+      status: 'pending_multisig',
+      timelockExpiry,
+      createdAt: Date.now(),
+      ip: clientIp,
+      userAgent: req.headers['user-agent']
+    };
+    
+    await redis.set(`withdrawal:${requestId}`, JSON.stringify(withdrawalRequest), 'EX', 86400 * 14);
+    
+    await redis.lpush('audit:log', JSON.stringify({
+      action: 'treasury.withdraw.requested',
+      actor: req.session.wallet,
+      amount,
+      to,
+      reason: reason || 'No reason provided',
+      requestId,
+      timelockExpiry,
+      timestamp: Date.now(),
+      ip: clientIp,
+      userAgent: req.headers['user-agent']
+    }));
+    await redis.ltrim('audit:log', 0, 9999);
+    
+    console.log(`🚨 ALERT: Withdrawal requested by ${req.session.wallet} for ${amount} ETH to ${to}. Timelock until ${new Date(timelockExpiry).toISOString()}`);
+    
+    res.json({
+      status: 'pending_multisig',
+      message: `Withdrawal request created. Requires multisig approval and ${TIMELOCK_DURATION / 3600000}h timelock.`,
+      requestId,
+      timelockExpiry
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.errors?.[0]?.message || 'Invalid request' });
+  }
+});
+
+// Get audit logs
+app.get('/api/admin/audit', apiLimiter, authenticateSession, async (req, res) => {
+  if (!req.session.permissions.includes('logs.view')) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+  
+  const logs = await redis.lrange('audit:log', 0, 199);
+  const parsedLogs = logs.map(log => JSON.parse(log));
+  
+  res.json({ logs: parsedLogs });
+});
+
+// Logout
+app.post('/api/auth/logout', authenticateSession, async (req, res) => {
+  const sessionToken = req.cookies.admin_session;
+  
+  if (sessionToken) {
+    await redis.del(`session:${sessionToken}`);
+    await redis.del(`csrf:${sessionToken}`);
+  }
+  
+  res.clearCookie('admin_session');
+  res.clearCookie('X-CSRF-Token');
+  res.json({ success: true });
+});
+
+// ============ Gasless Endpoints ============
+app.post('/api/gasless/submit', gaslessLimiter, async (req, res) => {
+  try {
+    const { user, swap, signature } = req.body;
+    
+    // Validate swap schema
+    const validatedSwap = SwapSchema.parse(swap);
+    const validatedUser = user.toLowerCase();
+    
+    if (validatedSwap.user.toLowerCase() !== validatedUser) {
+      return res.status(400).json({ error: 'User address mismatch' });
+    }
+    
+    // Verify deadline
+    const now = Math.floor(Date.now() / 1000);
+    if (BigInt(validatedSwap.deadline) < now) {
+      return res.status(400).json({ error: 'Swap deadline has expired' });
+    }
+    
+    const executorAddr = '0xfA6e245B353934c6D9980b285F3660694764384c';
+    const domain = {
+      name: 'TefaGaslessExecutor',
+      version: '1',
+      chainId: 11155111,
+      verifyingContract: executorAddr
+    };
+    
+    const types = {
+      Swap: [
+        { name: 'user', type: 'address' },
+        { name: 'tokenIn', type: 'address' },
+        { name: 'amountIn', type: 'uint256' },
+        { name: 'tokenOut', type: 'address' },
+        { name: 'minOut', type: 'uint256' },
+        { name: 'relayerFeeAmount', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' }
+      ]
+    };
+    
+    const swapForVerify = {
+      ...validatedSwap,
+      amountIn: BigInt(validatedSwap.amountIn),
+      minOut: BigInt(validatedSwap.minOut),
+      relayerFeeAmount: BigInt(validatedSwap.relayerFeeAmount || 0),
+      nonce: BigInt(validatedSwap.nonce),
+      deadline: BigInt(validatedSwap.deadline)
+    };
+    
+    let recovered;
+    try {
+      recovered = ethers.verifyTypedData(domain, types, swapForVerify, signature);
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    
+    if (recovered.toLowerCase() !== validatedUser) {
+      return res.status(401).json({ error: 'Signature verification failed' });
+    }
+    
+    // Atomic nonce reservation
+    const replayKey = `nonce:used:${validatedUser}:${validatedSwap.nonce}`;
+    const reserved = await redis.eval(reserveNonceScript, 1, replayKey, '1', 86400);
+    if (!reserved) {
+      return res.status(409).json({ error: 'Nonce already used. Replay attack detected.' });
+    }
+    
+    const idempotencyKey = crypto.createHash('sha256')
+      .update(`${validatedUser}-${validatedSwap.nonce}-${signature.slice(0, 66)}`)
+      .digest('hex');
+    
+    const job = await queue.add('execution', { user: validatedUser, swap: validatedSwap, signature, idempotencyKey }, {
+      jobId: idempotencyKey,
+      removeOnComplete: 100,
+      removeOnFail: 500,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 }
+    });
+    
+    res.json({ status: 'queued', jobId: job.id });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ error: 'Invalid swap parameters', details: err.errors });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/job/:jobId', apiLimiter, async (req, res) => {
+  try {
+    const job = await queue.getJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    
+    res.json({
+      jobId: job.id,
+      state: await job.getState(),
+      txHash: job.returnvalue?.txHash || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/jobs/recent', apiLimiter, async (req, res) => {
+  try {
+    const completed = await queue.getJobs(['completed'], 0, 20);
+    const failed = await queue.getJobs(['failed'], 0, 10);
+    
+    const jobs = [
+      ...completed.map(j => ({ id: j.id, status: 'completed', txHash: j.returnvalue?.txHash, timestamp: j.finishedOn || j.timestamp })),
+      ...failed.map(j => ({ id: j.id, status: 'failed', error: j.failedReason, timestamp: j.finishedOn || j.timestamp }))
+    ].sort((a, b) => b.timestamp - a.timestamp).slice(0, 20);
+    
+    res.json({ jobs });
+  } catch (err) {
+    res.json({ jobs: [] });
+  }
+});
+
+app.get('/metrics', apiLimiter, async (req, res) => {
+  try {
+    const waiting = await queue.getWaitingCount();
+    const active = await queue.getActiveCount();
+    const completed = await queue.getCompletedCount();
+    const failed = await queue.getFailedCount();
+    
+    res.json({ waiting, active, completed, failed, total: completed + failed, successRate: completed + failed > 0 ? (completed / (completed + failed)) * 100 : 100 });
+  } catch (err) {
+    res.json({ waiting: 0, active: 0, completed: 0, failed: 0, total: 0, successRate: 100 });
+  }
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'alive', timestamp: Date.now() });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ API server running on port ${PORT}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('⚠️  WARNING: Running in development mode with hardcoded admin allowlist');
+    console.log('   Production requires governance contract for admin permissions');
+  }
+});
+
+// Better health check with component status
+app.get('/api/health', async (req, res) => {
+  let redisOk = false;
+  let queueOk = false;
+  
+  try {
+    await redis.ping();
+    redisOk = true;
+  } catch (e) {}
+  
+  try {
+    const waiting = await queue.getWaitingCount();
+    queueOk = true;
+  } catch (e) {}
+  
+  res.json({
+    status: redisOk && queueOk ? 'healthy' : 'degraded',
+    redis: redisOk ? 'connected' : 'disconnected',
+    queue: queueOk ? 'ready' : 'unavailable',
+    timestamp: Date.now()
+  });
+});

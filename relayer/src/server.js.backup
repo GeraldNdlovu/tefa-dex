@@ -1,0 +1,288 @@
+import express from 'express';
+import { Queue } from 'bullmq';
+import Redis from 'ioredis';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { ethers } from 'ethers';
+import { z } from 'zod';
+import { SiweMessage } from 'siwe';
+
+dotenv.config();
+
+const app = express();
+
+app.use(helmet({
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  frameguard: { action: 'deny' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+}));
+
+app.use(cors({
+  origin: ['https://dex.147.182.193.26.nip.io', 'http://localhost:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+}));
+app.use(express.json({ limit: '100kb' }));
+
+// CORS configuration
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && (origin.includes("147.182.193.26") || origin.includes("localhost"))) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, X-CSRF-Token");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
+
+app.use(cookieParser());
+app.set('trust proxy', 1);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0] || req.ip
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0] || req.ip
+});
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false
+});
+
+const queue = new Queue('tefa-gasless', { connection: redis });
+
+// Admin allowlist
+const ALLOWLIST = {
+  '0xa35dcfb812fb9d9df1f59e45b72abc94683a9734': {
+    permissions: ['admin.access', 'treasury.view', 'treasury.manage', 'pools.view', 'pools.manage', 'logs.view']
+  },
+  '0x46980bc901a04b9ad24e86a4d76ecd7c45df6ca4': {
+    permissions: ['admin.access', 'treasury.view', 'pools.view', 'logs.view']
+  }
+};
+
+async function getAdminPermissions(wallet) {
+  return ALLOWLIST[wallet.toLowerCase()] || null;
+}
+
+const SESSION_DURATION = 15 * 60 * 1000;
+const ABSOLUTE_SESSION_DURATION = 8 * 60 * 60 * 1000;
+
+app.post('/api/auth/nonce', authLimiter, async (req, res) => {
+  try {
+    const { wallet } = req.body;
+    const nonce = crypto.randomBytes(32).toString('hex');
+    const issuedAt = new Date().toISOString();
+    const expirationTime = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    
+    const siweMessage = new SiweMessage({
+      domain: 'dex.147.182.193.26.nip.io',
+      address: wallet,
+      statement: 'Sign in to TEFA DEX Admin Dashboard',
+      uri: 'https://dex.147.182.193.26.nip.io',
+      version: '1',
+      chainId: 11155111,
+      nonce: nonce,
+      issuedAt: issuedAt,
+      expirationTime: expirationTime
+    });
+    
+    const message = siweMessage.prepareMessage();
+    await redis.set(`nonce:${wallet.toLowerCase()}`, JSON.stringify({ nonce, expirationTime, message }), 'EX', 300);
+    res.json({ nonce, message });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/login', authLimiter, async (req, res) => {
+  try {
+    const { wallet, signature, message } = req.body;
+    const lowerWallet = wallet.toLowerCase();
+    
+    const nonceData = await redis.get(`nonce:${lowerWallet}`);
+    if (!nonceData) return res.status(401).json({ error: 'Nonce expired' });
+    
+    const { message: savedMessage } = JSON.parse(nonceData);
+    if (message !== savedMessage) return res.status(401).json({ error: 'Invalid message' });
+    
+    const siweMessage = new SiweMessage(message);
+    await siweMessage.verify({ signature, nonce: siweMessage.nonce });
+    
+    const admin = await getAdminPermissions(lowerWallet);
+    if (!admin) return res.status(403).json({ error: 'Not authorized' });
+    
+    const sessionToken = crypto.randomBytes(64).toString('hex');
+    const csrfToken = crypto.randomBytes(32).toString('hex');
+    const now = Date.now();
+    
+    const sessionData = {
+      wallet: lowerWallet,
+      permissions: admin.permissions,
+      csrfToken,
+      createdAt: now,
+      lastActivity: now,
+      expiresAt: now + SESSION_DURATION,
+      absoluteExpiresAt: now + ABSOLUTE_SESSION_DURATION
+    };
+    
+    await redis.set(`session:${sessionToken}`, JSON.stringify(sessionData), 'EX', ABSOLUTE_SESSION_DURATION / 1000);
+    await redis.set(`csrf:${sessionToken}`, csrfToken, 'EX', ABSOLUTE_SESSION_DURATION / 1000);
+    await redis.del(`nonce:${lowerWallet}`);
+    
+    res.cookie('admin_session', sessionToken, { httpOnly: true, secure: true, sameSite: 'strict', maxAge: ABSOLUTE_SESSION_DURATION, path: '/' });
+    res.cookie('X-CSRF-Token', csrfToken, { httpOnly: false, secure: true, sameSite: 'strict', maxAge: ABSOLUTE_SESSION_DURATION, path: '/' });
+    
+    res.json({ permissions: admin.permissions, expiresAt: sessionData.expiresAt });
+  } catch (err) {
+    res.status(401).json({ error: 'Login failed' });
+  }
+});
+
+async function authenticateSession(req, res, next) {
+  const sessionToken = req.cookies.admin_session;
+  if (!sessionToken) return res.status(401).json({ error: 'No session' });
+  
+  const csrfToken = req.headers['x-csrf-token'];
+  if (!csrfToken) return res.status(403).json({ error: 'CSRF token required' });
+  
+  const storedCsrf = await redis.get(`csrf:${sessionToken}`);
+  if (!storedCsrf || storedCsrf !== csrfToken) return res.status(403).json({ error: 'Invalid CSRF' });
+  
+  const sessionData = await redis.get(`session:${sessionToken}`);
+  if (!sessionData) return res.status(401).json({ error: 'Invalid session' });
+  
+  const session = JSON.parse(sessionData);
+  if (Date.now() > session.expiresAt) return res.status(401).json({ error: 'Session expired' });
+  
+  session.lastActivity = Date.now();
+  session.expiresAt = Date.now() + SESSION_DURATION;
+  await redis.set(`session:${sessionToken}`, JSON.stringify(session), 'EX', ABSOLUTE_SESSION_DURATION / 1000);
+  
+  req.session = session;
+  next();
+}
+
+app.get('/api/admin/me', apiLimiter, authenticateSession, async (req, res) => {
+  res.json({ address: req.session.wallet, permissions: req.session.permissions, authenticated: true });
+});
+
+app.post('/api/auth/logout', authenticateSession, async (req, res) => {
+  const sessionToken = req.cookies.admin_session;
+  if (sessionToken) {
+    await redis.del(`session:${sessionToken}`);
+    await redis.del(`csrf:${sessionToken}`);
+  }
+  res.clearCookie('admin_session');
+  res.clearCookie('X-CSRF-Token');
+  res.json({ success: true });
+});
+
+// ============ GASLESS SWAP ENDPOINTS WITH REDIS STORAGE ============
+
+app.post('/api/gasless/submit', apiLimiter, async (req, res) => {
+  try {
+    const { user, swap, signature } = req.body;
+    if (!user || !swap || !signature) {
+      return res.status(400).json({ error: 'Missing user, swap, or signature' });
+    }
+    
+    const jobId = crypto.randomBytes(32).toString('hex');
+    const jobData = {
+      id: jobId,
+      state: 'queued',
+      txHash: null,
+      createdAt: Date.now(),
+      user: user
+    };
+    
+    // Store in Redis with 1 hour expiry
+    await redis.set(`job:${jobId}`, JSON.stringify(jobData), 'EX', 3600);
+    
+    // Simulate async processing (in production, this would be a real worker)
+    setTimeout(async () => {
+      try {
+        jobData.state = 'completed';
+        jobData.txHash = '0x' + crypto.randomBytes(32).toString('hex');
+        await redis.set(`job:${jobId}`, JSON.stringify(jobData), 'EX', 3600);
+      } catch (err) {
+        jobData.state = 'failed';
+        jobData.error = err.message;
+        await redis.set(`job:${jobId}`, JSON.stringify(jobData), 'EX', 3600);
+      }
+    }, 5000);
+    
+    res.json({ status: 'queued', jobId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/job/:jobId', apiLimiter, async (req, res) => {
+  const jobData = await redis.get(`job:${req.params.jobId}`);
+  if (!jobData) return res.status(404).json({ error: 'Job not found' });
+  
+  const job = JSON.parse(jobData);
+  res.json({
+    jobId: job.id,
+    state: job.state,
+    txHash: job.txHash || null
+  });
+});
+
+app.get('/api/jobs/recent', apiLimiter, async (req, res) => {
+  const keys = await redis.keys('job:*');
+  const jobs = [];
+  for (const key of keys.slice(0, 20)) {
+    const jobData = await redis.get(key);
+    if (jobData) jobs.push(JSON.parse(jobData));
+  }
+  jobs.sort((a, b) => b.createdAt - a.createdAt);
+  res.json({ jobs: jobs.slice(0, 20) });
+});
+
+app.get('/metrics', apiLimiter, async (req, res) => {
+  const keys = await redis.keys('job:*');
+  let completed = 0, failed = 0;
+  for (const key of keys) {
+    const jobData = await redis.get(key);
+    if (jobData) {
+      const job = JSON.parse(jobData);
+      if (job.state === 'completed') completed++;
+      if (job.state === 'failed') failed++;
+    }
+  }
+  res.json({ 
+    waiting: 0, 
+    active: 0, 
+    completed, 
+    failed, 
+    total: completed + failed, 
+    successRate: completed + failed > 0 ? (completed / (completed + failed)) * 100 : 100 
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'alive', timestamp: Date.now() });
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, "0.0.0.0", '0.0.0.0', () => {
+  console.log(`✅ API server running on port ${PORT}`);
+});
+
+// Add CORS for frontend
+});

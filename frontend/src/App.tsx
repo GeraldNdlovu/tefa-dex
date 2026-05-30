@@ -1,190 +1,165 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { CONTRACT_ADDRESSES } from './config/contracts';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { SwapCard } from './components/SwapCard';
 import { Liquidity } from './components/Liquidity';
-import { Admin } from './components/Admin';
-import { ErrorMessage } from './components/ErrorMessage';
-import { GaslessCustom } from './components/GaslessCustom';
-import { ArrowDownUp, Shield, Droplet, Zap } from 'lucide-react';
+import { AdminDashboard } from './components/AdminDashboard';
+import { AuthProvider } from './contexts/AuthContext';
+import { Shield, Wallet, RefreshCw } from 'lucide-react';
 
 declare global {
   interface Window {
-    ethereum: any;
+    ethereum?: any;
   }
 }
 
-const ERC20_ABI = ["function balanceOf(address account) view returns (uint256)"];
-const ROUTER_ABI = ["function swap(address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256)"];
-const POOL_ABI = ["function getReserves() view returns (uint256, uint256)"];
-
 function App() {
-  const [account, setAccount] = useState<string>('');
+  const [account, setAccount] = useState<string | null>(null);
   const [provider, setProvider] = useState<any>(null);
-  const [signer, setSigner] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'swap' | 'gasless' | 'liquidity' | 'admin'>('swap');
-  const [tkaBalance, setTkaBalance] = useState<string>('0');
-  const [tkbBalance, setTkbBalance] = useState<string>('0');
-  const [reserves, setReserves] = useState<{ tka: string; tkb: string }>({ tka: '0', tkb: '0' });
-  const [swapAmount, setSwapAmount] = useState<string>('');
-  const [swapLoading, setSwapLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const TOKEN_A = CONTRACT_ADDRESSES.TOKEN_A;
-  const TOKEN_B = CONTRACT_ADDRESSES.TOKEN_B;
-  const ROUTER_ADDRESS = CONTRACT_ADDRESSES.ROUTER;
-  const POOL_ADDRESS = CONTRACT_ADDRESSES.POOL;
-
-  const refreshData = async () => {
-    if (!provider || !account) return;
-    try {
-      const tkaContract = new ethers.Contract(TOKEN_A, ERC20_ABI, provider);
-      const tkbContract = new ethers.Contract(TOKEN_B, ERC20_ABI, provider);
-      const poolContract = new ethers.Contract(POOL_ADDRESS, POOL_ABI, provider);
-      const tkaBal = await tkaContract.balanceOf(account);
-      const tkbBal = await tkbContract.balanceOf(account);
-      const [reserve0, reserve1] = await poolContract.getReserves();
-      setTkaBalance(ethers.formatEther(tkaBal));
-      setTkbBalance(ethers.formatEther(tkbBal));
-      setReserves({ tka: ethers.formatEther(reserve0), tkb: ethers.formatEther(reserve1) });
-    } catch (err) { console.error(err); }
-  };
-
-  useEffect(() => {
-    if (provider && account) {
-      refreshData();
-      const interval = setInterval(refreshData, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [provider, account]);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'swap' | 'liquidity' | 'admin'>('swap');
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-      setError('Please install MetaMask');
+      toast.error('Please install MetaMask');
       return;
     }
+
+    setIsConnecting(true);
     try {
-      const browserProvider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await browserProvider.getSigner();
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const web3Provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await web3Provider.getSigner();
       const address = await signer.getAddress();
-      setProvider(browserProvider);
-      setSigner(signer);
+      
       setAccount(address);
-      setError(null);
-    } catch (err) {
-      setError('Failed to connect wallet');
-    }
-  };
-
-  const executeSwap = async () => {
-    if (!signer || !account || !swapAmount) return;
-    setSwapLoading(true);
-    try {
-      const router = new ethers.Contract(ROUTER_ADDRESS, ROUTER_ABI, signer);
-      const amountIn = ethers.parseEther(swapAmount);
-      const tx = await router.swap(TOKEN_A, TOKEN_B, amountIn);
-      await tx.wait();
-      refreshData();
-      setSwapAmount('');
-      alert('Swap successful!');
-    } catch (err) {
-      alert('Swap failed');
+      setProvider(web3Provider);
+      toast.success(`Connected: ${address.slice(0, 6)}...${address.slice(-4)}`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to connect');
     } finally {
-      setSwapLoading(false);
+      setIsConnecting(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-3">
-            <Shield className="w-8 h-8 text-purple-400" />
-            <h1 className="text-3xl font-bold text-white">TEFA DEX</h1>
-          </div>
-          {account ? (
-            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-white text-sm">{account.slice(0, 6)}...{account.slice(-4)}</span>
+  useEffect(() => {
+    const init = async () => {
+      if (window.ethereum) {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+          const web3Provider = new ethers.BrowserProvider(window.ethereum);
+          setAccount(accounts[0]);
+          setProvider(web3Provider);
+        }
+      }
+    };
+    init();
+
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setAccount(accounts[0]);
+          window.location.reload();
+        } else {
+          setAccount(null);
+          setProvider(null);
+        }
+      });
+    }
+  }, []);
+
+  if (!account) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-8 h-8 text-purple-500" />
+              <span className="text-white font-bold text-xl">TEFADEX</span>
+              <span className="text-xs text-purple-400 bg-purple-500/20 px-2 py-1 rounded-full">Gasless • Multi-Chain</span>
             </div>
-          ) : (
-            <button onClick={connectWallet} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2 rounded-xl transition">
-              Connect Wallet
-            </button>
-          )}
-        </div>
-
-        {error && <ErrorMessage message={error} onClose={() => setError(null)} type="error" />}
-
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-gray-800/50 rounded-2xl p-1 mb-6 flex gap-1">
-            <button onClick={() => setActiveTab('swap')} className={`flex-1 px-6 py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${activeTab === 'swap' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-              <ArrowDownUp className="w-4 h-4" />Swap
-            </button>
-            <button onClick={() => setActiveTab('gasless')} className={`flex-1 px-6 py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${activeTab === 'gasless' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-              <Zap className="w-4 h-4" />Gasless
-            </button>
-            <button onClick={() => setActiveTab('liquidity')} className={`flex-1 px-6 py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${activeTab === 'liquidity' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-              <Droplet className="w-4 h-4" />Liquidity
-            </button>
-            <button onClick={() => setActiveTab('admin')} className={`flex-1 px-6 py-2 rounded-xl font-semibold transition flex items-center justify-center gap-2 ${activeTab === 'admin' ? 'bg-purple-600 text-white' : 'text-gray-400 hover:text-white'}`}>
-              <Shield className="w-4 h-4" />Admin
-            </button>
           </div>
-
-          {activeTab === 'swap' && (
-            <div className="bg-gray-800/50 rounded-2xl p-6 backdrop-blur-sm">
-              <h3 className="text-white font-semibold mb-4">Swap Tokens</h3>
-              <div className="bg-gray-900 rounded-xl p-4 mb-4">
-                <div className="flex justify-between text-sm text-gray-400 mb-2">
-                  <span>You Pay</span>
-                  <span>Balance: {parseFloat(tkaBalance).toFixed(4)} TKA</span>
-                </div>
-                <div className="flex gap-2">
-                  <input type="number" value={swapAmount} onChange={(e) => setSwapAmount(e.target.value)} placeholder="0.0" className="flex-1 bg-transparent text-white text-2xl focus:outline-none" />
-                  <span className="text-white font-semibold">TKA</span>
-                </div>
-              </div>
-              <button onClick={executeSwap} disabled={swapLoading || !swapAmount || !account} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 rounded-xl hover:opacity-90 disabled:opacity-50">
-                {swapLoading ? 'Swapping...' : 'Swap'}
+          
+          <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+            <div className="glass-card p-8 text-center">
+              <Wallet className="w-16 h-16 text-purple-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Connect Your Wallet</h2>
+              <p className="text-gray-400 mb-6">Connect your wallet to start gasless trading</p>
+              <button
+                onClick={connectWallet}
+                disabled={isConnecting}
+                className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-6 py-3 rounded-xl flex items-center gap-2 mx-auto hover:from-purple-600 hover:to-purple-700 transition disabled:opacity-50"
+              >
+                {isConnecting ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Wallet className="w-5 h-5" />}
+                {isConnecting ? 'Connecting...' : 'Connect Wallet'}
               </button>
             </div>
-          )}
-
-          {activeTab === 'gasless' && (
-            <GaslessCustom account={account} provider={provider} onRefresh={refreshData} />
-          )}
-
-          {activeTab === 'liquidity' && (
-            <Liquidity account={account} provider={provider} signer={signer} onRefresh={refreshData} />
-          )}
-
-          {activeTab === 'admin' && (
-            <Admin account={account} provider={provider} />
-          )}
-        </div>
-
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gray-800/30 rounded-xl p-4">
-            <div className="text-gray-400 text-sm mb-1">Pool Reserves</div>
-            <div className="text-white font-medium">{parseFloat(reserves.tka).toFixed(2)} TKA</div>
-            <div className="text-white font-medium">{parseFloat(reserves.tkb).toFixed(2)} TKB</div>
           </div>
-          <div className="bg-gray-800/30 rounded-xl p-4">
-            <div className="text-gray-400 text-sm mb-1">Exchange Rate</div>
-            <div className="text-white font-medium">
-              {parseFloat(reserves.tkb) > 0 && parseFloat(reserves.tka) > 0 
-                ? `1 TKA = ${(parseFloat(reserves.tkb) / parseFloat(reserves.tka)).toFixed(6)} TKB`
-                : 'Loading...'}
+        </div>
+        <ToastContainer position="bottom-right" theme="dark" />
+      </div>
+    );
+  }
+
+  return (
+    <AuthProvider account={account} provider={provider}>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-8 h-8 text-purple-500" />
+              <span className="text-white font-bold text-xl">TEFADEX</span>
+              <span className="text-xs text-purple-400 bg-purple-500/20 px-2 py-1 rounded-full">Gasless • Multi-Chain</span>
+            </div>
+            
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setActiveTab('swap')}
+                className={`px-4 py-2 rounded-lg transition ${
+                  activeTab === 'swap'
+                    ? 'bg-purple-500/20 text-purple-400'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Swap
+              </button>
+              <button
+                onClick={() => setActiveTab('liquidity')}
+                className={`px-4 py-2 rounded-lg transition ${
+                  activeTab === 'liquidity'
+                    ? 'bg-purple-500/20 text-purple-400'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Liquidity
+              </button>
+              <button
+                onClick={() => setActiveTab('admin')}
+                className={`px-4 py-2 rounded-lg transition ${
+                  activeTab === 'admin'
+                    ? 'bg-purple-500/20 text-purple-400'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Admin
+              </button>
+            </div>
+            
+            <div className="bg-gray-800/50 rounded-lg px-3 py-1">
+              <span className="text-xs text-gray-400">Wallet:</span>
+              <span className="text-sm text-white ml-2">{account.slice(0, 6)}...{account.slice(-4)}</span>
             </div>
           </div>
-          <div className="bg-gray-800/30 rounded-xl p-4">
-            <div className="text-gray-400 text-sm mb-1">Your Balance</div>
-            <div className="text-white font-medium">{parseFloat(tkaBalance).toFixed(4)} TKA</div>
-            <div className="text-white font-medium">{parseFloat(tkbBalance).toFixed(4)} TKB</div>
-          </div>
+          
+          {activeTab === 'swap' && <SwapCard account={account} provider={provider} />}
+          {activeTab === 'liquidity' && <Liquidity account={account} provider={provider} />}
+          {activeTab === 'admin' && <AdminDashboard account={account} provider={provider} />}
         </div>
       </div>
-    </div>
+      <ToastContainer position="bottom-right" theme="dark" />
+    </AuthProvider>
   );
 }
 
