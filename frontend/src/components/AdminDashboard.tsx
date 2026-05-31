@@ -1,4 +1,5 @@
 import { usePermissions } from '../contexts/AuthContext';
+import { RelayerMetrics } from "./RelayerMetrics";
 import { Shield, Lock, LogIn, AlertCircle, Wallet, Activity, TrendingUp, Settings, Users, DollarSign } from 'lucide-react';
 import { AdminPanel } from './AdminPanel';
 
@@ -46,6 +47,7 @@ export function AdminDashboard({ account, provider }: any) {
   return (
     <div className="space-y-6">
       <div className="glass-card p-6">
+        <RelayerMetrics />
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-5 h-5 text-green-400" />
           <h2 className="text-white font-semibold">Admin Dashboard</h2>
