@@ -1,16 +1,11 @@
-
-```bash
-cd /root/tefa-dex
-
-cat > README.md << 'README_EOF'
-# TEFA DEX – Gasless Multi‑Chain Exchange
+TEFA DEX – Gasless Multi‑Chain Exchange
 
 A fully functional decentralised exchange (DEX) that uses **meta‑transactions (gasless swaps)**.  
 Users sign messages; the relayer pays gas and submits transactions. No ETH required for trading.
 
 ---
 
-## 🔥 Live (Sepolia testnet)
+🔥 Live (Sepolia testnet)
 
 **Main URL:** https://dex.147.182.193.26.nip.io  
 *Accept the self‑signed certificate warning.*
