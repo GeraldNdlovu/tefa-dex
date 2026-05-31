@@ -1,4 +1,3 @@
-The README was cut off. Let me write it properly to a file:
 
 ```bash
 cd /root/tefa-dex
