@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Hardhat artifacts and cache
+artifacts/
+cache/
+coverage/
+coverage.json
+typechain/
+typechain-types/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+out/
+frontend/dist/
+frontend/build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Hardhat files
+hardhat.log
+deploy-output.txt
+simple-deploy.txt
+
+# Frontend specific
+frontend/node_modules/
+frontend/.env
+frontend/.env.local
+
+# Relayer
+relayer/node_modules/
+
+# Ignition deployments
+ignition/deployments/
+
+# Logs
+logs/
+*.log
+
+# OS files
+Thumbs.db
+node_modules/
+frontend/node_modules/
+relayer/node_modules/
+node_modules/
+frontend/node_modules/
+relayer/node_modules/
+
+# Node modules (already ignored but ensure)
+node_modules/
+frontend/node_modules/
+relayer/node_modules/
+krait/

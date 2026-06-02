@@ -1,0 +1,32 @@
+{
+  "name": "tefa-dex",
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "./start.sh",
+    "stop": "./stop.sh",
+    "status": "./status.sh",
+    "attach": "tmux attach -t tefa",
+    "deploy": "npx hardhat run scripts/deploy.ts --network localhost",
+    "compile": "npx hardhat clean && npx hardhat compile",
+    "test": "npx hardhat test",
+    "swap": "npx hardhat run scripts/test-swap.ts --network localhost",
+    "console": "npx hardhat console --network localhost"
+  },
+  "dependencies": {
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.10",
+    "@nomicfoundation/hardhat-verify": "^3.0.16",
+    "@openzeppelin/contracts": "^5.6.1",
+    "@types/node": "^20.0.0",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.16.0",
+    "hardhat": "^3.4.3",
+    "solhint": "^6.2.1",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}
