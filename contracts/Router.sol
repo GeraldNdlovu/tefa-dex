@@ -22,7 +22,8 @@ contract Router is ERC2771Context {
 
     function createPool(address tokenA, address tokenB) external returns (address pool) {
         require(getPool[tokenA][tokenB] == address(0), "Pool exists");
-        pool = address(new Pool(tokenA, tokenB, _msgSender()));
+        // Pool constructor takes 2 arguments (token0, token1)
+        pool = address(new Pool(tokenA, tokenB));
         getPool[tokenA][tokenB] = pool;
         getPool[tokenB][tokenA] = pool;
         emit PoolCreated(tokenA, tokenB, pool);
