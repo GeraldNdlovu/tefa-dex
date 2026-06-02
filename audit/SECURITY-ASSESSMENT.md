@@ -1,14 +1,20 @@
 # TEFA DEX — Internal Security Assessment
 
-**Date:** June 2, 2026  
-**Type:** Internal Security Review (not an independent audit)  
-
 ---
 
-## Review Target
-- **Repository:** TEFA DEX
-- **Commit:** 7fb26f9
-- **Date Reviewed:** 2026-06-02
+## Review Metadata
+
+| Item | Value |
+|------|-------|
+| Review Type | Internal Security Assessment |
+| Date | June 2, 2026 |
+| Repository | TEFA DEX |
+| Commit | abbecd2 |
+| Contracts Reviewed | 4 |
+| Static Analysis | Slither |
+| Fuzz Testing | Foundry |
+| Independent Audit | No |
+| Formal Verification | No |
 
 ---
 
@@ -21,7 +27,7 @@
 
 | ID | Finding | Severity |
 |----|---------|----------|
-| F-01 | Unused slippage and deadline parameters in Router.swap() | Medium |
+| F-01 | Router.swap() accepts amountOutMin and deadline parameters but does not currently enforce them | Medium |
 | F-02 | Transfer-before-state-update ordering in Pool.swap() (nonReentrant present) | Informational |
 | F-03 | Architectural observation: Pool.swap() public, liquidity functions router-restricted | Informational |
 
@@ -74,9 +80,9 @@ Findings are based on manual review, static analysis, and limited fuzz testing o
 
 ## Detailed Findings
 
-### F-01: Unused slippage and deadline parameters in Router.swap()
+### F-01: Router.swap() accepts amountOutMin and deadline parameters but does not currently enforce them
 **Severity:** Medium  
-**Evidence:** Router.swap() accepts amountOutMin and deadline but never enforces them  
+**Evidence:** Parameters are accepted but never checked against actual output or timestamp  
 **Recommendation:** Add validation or remove parameters
 
 ### F-02: Transfer-before-state-update ordering in Pool.swap()
@@ -118,6 +124,16 @@ Recommended future testing:
 - Meta-transaction authorization testing
 - Adversarial ERC20 testing
 - Economic and MEV analysis
+
+---
+
+## Conclusion
+
+The review identified one medium-severity issue (F-01) and two informational observations (F-02, F-03).
+
+The most important remediation items are implementation of slippage protection and deadline enforcement in Router.swap().
+
+No critical or high-severity issues were identified during the scope of this review. However, significant areas remain untested, including invariants, adversarial token behavior, meta-transaction authorization paths, and economic attack scenarios.
 
 ---
 
