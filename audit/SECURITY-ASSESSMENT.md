@@ -3,72 +3,63 @@
 **Date:** June 2, 2026  
 **Type:** Internal Security Review (not an independent audit)  
 
----
+## Scope
+- Pool.sol, Router.sol, MockERC20.sol, SimpleForwarder.sol
 
-## 1. Scope
+## What Was Tested
+- Manual code review
+- Slither static analysis
+- Router.swap() fuzz (256 random inputs) - passed
 
-| Contract | Purpose |
-|----------|---------|
-| Pool.sol | Liquidity pool, swap math, reserves |
-| Router.sol | Entry point, swap routing |
-| MockERC20.sol | TKA/TKB tokens |
-| SimpleForwarder.sol | EIP-2771 gasless |
-
----
-
-## 2. What Was Tested
-
-| Activity | Status |
-|----------|--------|
-| Manual code review | Done |
-| Slither static analysis | Done |
-| Router.swap() fuzz (256 random inputs) | Done |
-
-## 3. What Was NOT Tested
-
-- Invariant testing (not done)
-- Economic attack simulation (not done)
-- Direct Pool.swap() path (not fuzzed)
-- Malicious ERC20 tokens (not tested)
+## What Was NOT Tested
+- Invariant testing
+- Economic attack simulation
+- Malicious ERC20 tokens
 - Meta-transaction authorization (partial)
-- Liquidity add/remove fuzzing (not done)
-- Fee calculation rounding (not tested)
-- Replay protection (not tested)
-- Pool creation edge cases (not tested)
+- Liquidity add/remove fuzzing
+- Direct Pool.swap() path
+- Reserve vs balance synchronization
 
----
+## Limitations
+Findings are based on manual review, static analysis, and limited fuzz testing only. No formal verification, economic modeling, or independent third-party review was performed.
 
-## 4. Confirmed Issues
+## Evidence
 
-### Issue 1: Unused parameters in Router.swap()
-**Location:** Router.sol
-**Details:** amountOutMin and deadline accepted but never checked
-**Recommendation:** Add validation or remove parameters
+### Slither
+- Static analysis completed
+- Static analysis identified unused `amountOutMin` and `deadline` parameters in `Router.swap()`
 
-### Issue 2: CEI pattern deviation in Pool.swap()
-**Location:** Pool.sol
-**Details:** transferFrom before state update (nonReentrant is present)
-**Recommendation:** Reorder operations or document as intentional
+### Foundry
+- Router.swap() fuzz test executed
+- 256 generated random inputs
+- No failures or reverts observed (successful runs only)
+- Constant product not formally verified (no invariant test)
 
-### Issue 3: Asymmetric access control
-**Location:** Pool.sol
-**Details:** swap() public; addLiquidityFor() onlyRouter
-**Recommendation:** Document design intent
+### Manual Review
+- Router parameter handling reviewed
+- Pool reserve update ordering reviewed
+- Access control model reviewed
 
----
+## Findings
 
-## 5. Recommendations Before Mainnet
+**1. Router.swap() accepts amountOutMin and deadline parameters but does not currently enforce them.**
+Recommendation: Add validation or remove parameters.
 
+**2. Pool.swap() performs token transfers before reserve updates. While protected by nonReentrant, the ordering should be reviewed against the intended security model.**
+Recommendation: Reorder operations or document as intentional.
+
+**3. swap() is public while addLiquidityFor() and removeLiquidityFor() are onlyRouter. Review whether direct access to Pool.swap() is an intentional design decision.**
+Recommendation: Document design intent or add onlyRouter to swap().
+
+## Recommendations Before Mainnet
 1. Add slippage protection (require amountOut >= amountOutMin)
 2. Add deadline check (require block.timestamp <= deadline)
 3. Review CEI ordering in Pool.swap()
 4. Add invariant tests for reserve accounting
 5. Add fuzz tests for direct Pool.swap() path
-6. Consider independent external audit
+6. Add meta-transaction authorization tests
+7. Consider independent external audit
 
----
-
-## 6. Assessment
-
-This was an internal security review, not a professional audit. The core swap logic appears functional, but several issues should be addressed before mainnet deployment.
+## Assessment
+This review provides preliminary security evidence through manual inspection, static analysis, and limited fuzz testing. This is a Phase 1 security review, not a deployment sign-off. Additional invariant testing, authorization testing, and economic analysis should be completed before considering production deployment.
 
