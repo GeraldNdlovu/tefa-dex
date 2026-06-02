@@ -5,6 +5,13 @@
 
 ---
 
+## Review Target
+- **Repository:** TEFA DEX
+- **Commit:** 7fb26f9
+- **Date Reviewed:** 2026-06-02
+
+---
+
 ## Scope
 - Pool.sol, Router.sol, MockERC20.sol, SimpleForwarder.sol
 
@@ -16,14 +23,14 @@
 |----|---------|----------|
 | F-01 | Unused slippage and deadline parameters in Router.swap() | Medium |
 | F-02 | Transfer-before-state-update ordering in Pool.swap() (nonReentrant present) | Informational |
-| F-03 | Direct Pool.swap() accessibility (public vs onlyRouter) | Informational |
+| F-03 | Architectural observation: Pool.swap() public, liquidity functions router-restricted | Informational |
 
 ---
 
 ## What Was Tested
 - Manual code review
 - Slither static analysis
-- Router.swap() fuzz: 256 randomized amountIn values, no unexpected reverts, output amount remained positive
+- Router.swap() fuzz: 256 randomized amountIn values, no unexpected reverts observed
 
 ## What Was NOT Tested
 - Invariant testing
@@ -52,7 +59,8 @@ Findings are based on manual review, static analysis, and limited fuzz testing o
 - Code review and compilation warnings identified unused `amountOutMin` and `deadline` parameters in `Router.swap()`
 
 ### Slither
-- Static analysis completed, no critical issues found
+- Static analysis completed
+- No critical findings were identified during review
 
 ### Foundry
 - Router.swap() fuzz test executed
@@ -77,16 +85,16 @@ Findings are based on manual review, static analysis, and limited fuzz testing o
 **Observation:** No exploitable reentrancy condition identified because nonReentrant is present  
 **Recommendation:** Consider updating state before external interactions or document design rationale
 
-### F-03: Direct Pool.swap() accessibility
+### F-03: Architectural observation — Pool.swap() accessibility
 **Severity:** Informational  
 **Evidence:** swap() public; addLiquidityFor() and removeLiquidityFor() are onlyRouter  
-**Recommendation:** Document design intent or add onlyRouter to swap()
+**Recommendation:** Confirm whether direct Pool.swap() access is intentional and document accordingly
 
 ---
 
 ## Current Recommendation
 
-**Status:** Not Ready for Mainnet
+**Status:** Conditional — mainnet deployment not recommended until identified findings are addressed
 
 ### Required
 - Implement slippage checks (require amountOut >= amountOutMin)
@@ -98,6 +106,18 @@ Findings are based on manual review, static analysis, and limited fuzz testing o
 - Add meta-transaction authorization tests
 - Expand fuzz coverage
 - Perform external audit
+
+---
+
+## Next Assessment Phase
+
+Recommended future testing:
+- Invariant testing
+- Direct Pool.swap() fuzzing
+- Reserve accounting verification
+- Meta-transaction authorization testing
+- Adversarial ERC20 testing
+- Economic and MEV analysis
 
 ---
 
