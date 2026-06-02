@@ -1,50 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --primary: #8b5cf6;
-  --primary-hover: #7c3aed;
-  --secondary: #10b981;
-  --dark-bg: #0f0f23;
-  --card-bg: #1a1a2e;
-  --border: #2d2d44;
-}
-
 body {
-  font-family: 'Inter', sans-serif;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
-  min-height: 100vh;
-}
-
-.glass-card {
-  background: rgba(26, 26, 46, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(139, 92, 246, 0.1);
-  border-radius: 24px;
-}
-
-.gradient-border {
-  background: linear-gradient(135deg, #8b5cf6, #10b981);
-  border-radius: 24px;
-  padding: 1px;
-}
-
-.price-up {
-  color: #10b981;
-}
-
-.price-down {
-  color: #ef4444;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-.loading-pulse {
-  animation: pulse 1.5s ease-in-out infinite;
+  background: #0D0F17;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
