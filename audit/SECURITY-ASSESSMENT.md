@@ -3,13 +3,27 @@
 **Date:** June 2, 2026  
 **Type:** Internal Security Review (not an independent audit)  
 
+---
+
 ## Scope
 - Pool.sol, Router.sol, MockERC20.sol, SimpleForwarder.sol
+
+---
+
+## Findings Summary
+
+| ID | Finding | Severity |
+|----|---------|----------|
+| F-01 | Unused slippage and deadline parameters in Router.swap() | Medium |
+| F-02 | Transfer-before-state-update ordering in Pool.swap() (nonReentrant present) | Informational |
+| F-03 | Direct Pool.swap() accessibility (public vs onlyRouter) | Informational |
+
+---
 
 ## What Was Tested
 - Manual code review
 - Slither static analysis
-- Router.swap() fuzz (256 random inputs) - passed
+- Router.swap() fuzz: 256 randomized amountIn values, no unexpected reverts, output amount remained positive
 
 ## What Was NOT Tested
 - Invariant testing
@@ -20,19 +34,29 @@
 - Direct Pool.swap() path
 - Reserve vs balance synchronization
 
+## Security Areas Not Assessed
+- Oracle manipulation
+- Flash-loan attacks
+- MEV/front-running resistance
+- Fee collector logic
+- Meta-transaction signature replay
+- Malicious ERC20 behavior
+- Gas griefing
+
 ## Limitations
 Findings are based on manual review, static analysis, and limited fuzz testing only. No formal verification, economic modeling, or independent third-party review was performed.
 
 ## Evidence
 
+### Code Review and Compilation
+- Code review and compilation warnings identified unused `amountOutMin` and `deadline` parameters in `Router.swap()`
+
 ### Slither
-- Static analysis completed
-- Static analysis identified unused `amountOutMin` and `deadline` parameters in `Router.swap()`
+- Static analysis completed, no critical issues found
 
 ### Foundry
 - Router.swap() fuzz test executed
-- 256 generated random inputs
-- No failures or reverts observed (successful runs only)
+- 256 generated random inputs executed without test failures
 - Constant product not formally verified (no invariant test)
 
 ### Manual Review
@@ -40,26 +64,43 @@ Findings are based on manual review, static analysis, and limited fuzz testing o
 - Pool reserve update ordering reviewed
 - Access control model reviewed
 
-## Findings
+## Detailed Findings
 
-**1. Router.swap() accepts amountOutMin and deadline parameters but does not currently enforce them.**
-Recommendation: Add validation or remove parameters.
+### F-01: Unused slippage and deadline parameters in Router.swap()
+**Severity:** Medium  
+**Evidence:** Router.swap() accepts amountOutMin and deadline but never enforces them  
+**Recommendation:** Add validation or remove parameters
 
-**2. Pool.swap() performs token transfers before reserve updates. While protected by nonReentrant, the ordering should be reviewed against the intended security model.**
-Recommendation: Reorder operations or document as intentional.
+### F-02: Transfer-before-state-update ordering in Pool.swap()
+**Severity:** Informational  
+**Evidence:** transferFrom before state update (nonReentrant present)  
+**Observation:** No exploitable reentrancy condition identified because nonReentrant is present  
+**Recommendation:** Consider updating state before external interactions or document design rationale
 
-**3. swap() is public while addLiquidityFor() and removeLiquidityFor() are onlyRouter. Review whether direct access to Pool.swap() is an intentional design decision.**
-Recommendation: Document design intent or add onlyRouter to swap().
+### F-03: Direct Pool.swap() accessibility
+**Severity:** Informational  
+**Evidence:** swap() public; addLiquidityFor() and removeLiquidityFor() are onlyRouter  
+**Recommendation:** Document design intent or add onlyRouter to swap()
 
-## Recommendations Before Mainnet
-1. Add slippage protection (require amountOut >= amountOutMin)
-2. Add deadline check (require block.timestamp <= deadline)
-3. Review CEI ordering in Pool.swap()
-4. Add invariant tests for reserve accounting
-5. Add fuzz tests for direct Pool.swap() path
-6. Add meta-transaction authorization tests
-7. Consider independent external audit
+---
+
+## Current Recommendation
+
+**Status:** Not Ready for Mainnet
+
+### Required
+- Implement slippage checks (require amountOut >= amountOutMin)
+- Implement deadline checks (require block.timestamp <= deadline)
+
+### Recommended
+- Add invariant tests for reserve accounting
+- Add fuzz tests for direct Pool.swap() path
+- Add meta-transaction authorization tests
+- Expand fuzz coverage
+- Perform external audit
+
+---
 
 ## Assessment
-This review provides preliminary security evidence through manual inspection, static analysis, and limited fuzz testing. This is a Phase 1 security review, not a deployment sign-off. Additional invariant testing, authorization testing, and economic analysis should be completed before considering production deployment.
+This review provides preliminary security evidence through manual inspection, static analysis, and limited fuzz testing. This is a Phase 1 security review, not a deployment sign-off.
 
