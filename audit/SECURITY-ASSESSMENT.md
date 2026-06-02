@@ -3,23 +3,8 @@
 **Date:** June 2, 2026  
 **Type:** Internal Security Review (not an independent audit)  
 
-## Review Metadata
-
-| Item | Value |
-|------|-------|
-| Review Type | Internal Security Assessment |
-| Date | June 2, 2026 |
-| Repository | TEFA DEX |
-| Commit | e1651fa |
-| Contracts Reviewed | Pool.sol, Router.sol |
-
-## Findings Status
-
-| ID | Finding | Severity | Status |
-|----|---------|----------|--------|
-| F-01 | Missing slippage/deadline checks | Medium | ✅ FIXED |
-| F-02 | CEI pattern deviation in Pool.swap() | Informational | ⚠️ Open |
-| F-03 | Asymmetric access control | Informational | ⚠️ Open |
+## Scope
+- Pool.sol, Router.sol, MockERC20.sol, SimpleForwarder.sol
 
 ## What Was Tested
 - Manual code review
@@ -31,11 +16,25 @@
 - Economic attack simulation
 - Malicious ERC20 tokens
 - Meta-transaction authorization (partial)
+- Liquidity add/remove fuzzing
 
-## Remaining Recommendations
-1. Review CEI ordering in Pool.swap() (F-02)
-2. Document asymmetric access control (F-03)
-3. Add invariant tests before mainnet
+## Confirmed Issues
 
-## Conclusion
-The only Medium-severity finding (F-01) has been fixed. Remaining items are informational.
+**1. Unused parameters in Router.swap()**
+amountOutMin and deadline accepted but never checked
+
+**2. CEI pattern deviation in Pool.swap()**
+transferFrom before state update (nonReentrant present)
+
+**3. Asymmetric access control**
+swap() public; addLiquidityFor() onlyRouter
+
+## Recommendations Before Mainnet
+1. Add slippage protection
+2. Add deadline check
+3. Review CEI ordering
+4. Add invariant tests
+5. Consider independent external audit
+
+## Assessment
+This was an internal security review, not a professional audit. Core swap logic appears functional. Address issues before mainnet.
