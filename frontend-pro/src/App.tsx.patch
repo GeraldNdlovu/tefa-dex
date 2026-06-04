@@ -1,0 +1,45 @@
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -150,15 +150,17 @@ function App() {
+             <div className="bg-black/20 rounded-xl p-4 mb-2">
+               <div className="flex justify-between text-white/60 text-sm mb-2">
+                 <span>From</span>
+-                <button onClick={setMaxAmount} className="hover:text-white transition">MAX</button>
++                <button onClick={setMaxAmount} className="text-xs text-blue-400 hover:text-blue-300 transition">
++                  Balance: {formatBalanceShort(formatToken(fromToken === 'TKA' ? balance.TKA : balance.TKB, tokenDecimals[fromToken]))}
++                </button>
+               </div>
+-              <div className="flex justify-between items-center">
+-                <button className="bg-white/10 rounded-xl px-4 py-2">
+-                  {fromToken === 'TKA' ? '⚡ TKA' : '💎 TKB'}
+-                </button>
+-                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} 
+-                       placeholder="0.0" className="bg-transparent text-2xl outline-none w-40 text-right" />
++              <div className="flex items-center gap-3">
++                <div className="token-selector-wrapper">
++                  <button className="bg-white/10 rounded-xl px-4 py-2 whitespace-nowrap">
++                    {fromToken === 'TKA' ? '⚡ TKA' : '💎 TKB'}
++                  </button>
++                </div>
++                <div className="token-input-container"><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.0" className="amount-input" /></div>
+               </div>
+             </div>
+ 
+@@ -174,12 +176,13 @@ function App() {
+             <div className="bg-black/20 rounded-xl p-4 mt-2">
+               <div className="text-white/60 text-sm mb-2">To (estimated)</div>
+-              <div className="flex justify-between items-center">
+-                <button className="bg-white/10 rounded-xl px-4 py-2">
+-                  {toToken === 'TKA' ? '⚡ TKA' : '💎 TKB'}
+-                </button>
+-                <input type="text" value={expectedOutput} disabled 
+-                       className="bg-transparent text-2xl outline-none w-40 text-right opacity-70" />
++              <div className="flex items-center gap-3">
++                <div className="token-selector-wrapper">
++                  <button className="bg-white/10 rounded-xl px-4 py-2 whitespace-nowrap opacity-70">
++                    {toToken === 'TKA' ? '⚡ TKA' : '💎 TKB'}
++                  </button>
++                </div>
++                <div className="token-input-container"><input type="text" value={expectedOutput} disabled className="amount-input opacity-70" /></div>
+               </div>
+             </div>

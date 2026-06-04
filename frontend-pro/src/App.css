@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fix input overflow */
+.flex-1.min-w-0 {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.flex-1.min-w-0 input {
+  width: 100%;
+  box-sizing: border-box;
+}

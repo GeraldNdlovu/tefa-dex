@@ -22,7 +22,6 @@ contract Router is ERC2771Context {
 
     function createPool(address tokenA, address tokenB) external returns (address pool) {
         require(getPool[tokenA][tokenB] == address(0), "Pool exists");
-        // Pool constructor takes 2 arguments (token0, token1)
         pool = address(new Pool(tokenA, tokenB));
         getPool[tokenA][tokenB] = pool;
         getPool[tokenB][tokenA] = pool;
@@ -42,18 +41,38 @@ contract Router is ERC2771Context {
         Pool(pool).addLiquidityFor(amountA, amountB, _msgSender());
     }
 
+    // ADDED: View function to get expected output amount
+    function getAmountOut(uint256 amountIn, address tokenIn, address tokenOut) external view returns (uint256) {
+        address pool = getPool[tokenIn][tokenOut];
+        require(pool != address(0), "Pool not found");
+        
+        (uint256 reserve0, uint256 reserve1) = Pool(pool).getReserves();
+        address token0 = Pool(pool).token0();
+        
+        uint256 reserveIn;
+        uint256 reserveOut;
+        
+        if (tokenIn == token0) {
+            reserveIn = reserve0;
+            reserveOut = reserve1;
+        } else {
+            reserveIn = reserve1;
+            reserveOut = reserve0;
+        }
+        
+        return Pool(pool).getAmountOut(amountIn, reserveIn, reserveOut);
+    }
+
     function swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOutMin, uint256 deadline) external returns (uint256 amountOut) {
         address pool = getPool[tokenIn][tokenOut];
         require(pool != address(0), "Pool not found");
         
-        // F-01 FIX: Deadline check
         require(block.timestamp <= deadline, "Router: expired");
         
         IERC20(tokenIn).transferFrom(_msgSender(), address(this), amountIn);
         IERC20(tokenIn).approve(pool, amountIn);
         amountOut = Pool(pool).swap(tokenIn, amountIn);
         
-        // F-01 FIX: Slippage check
         require(amountOut >= amountOutMin, "Router: slippage too high");
         
         IERC20(tokenOut).transfer(_msgSender(), amountOut);

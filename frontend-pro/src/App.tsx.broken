@@ -1,0 +1,396 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { ethers } from 'ethers';
+import { ArrowDownUp, Wallet, RefreshCw } from 'lucide-react';
+import './App.css';
+
+declare global { interface Window { ethereum: any; } }
+
+const RPC_URL = import.meta.env.VITE_RPC_URL;
+const CONTRACTS = {
+  ROUTER: import.meta.env.VITE_ROUTER,
+  TKA: import.meta.env.VITE_TKA,
+  TKB: import.meta.env.VITE_TKB,
+  POOL: import.meta.env.VITE_POOL,
+};
+const FEE = 3;
+const FEE_DENOM = 1000;
+
+const ERC20_ABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function approve(address,uint256) returns (bool)",
+  "function allowance(address,address) view returns (uint256)",
+  "function decimals() view returns (uint8)"
+];
+const ROUTER_ABI = ["function swap(address,address,uint256,uint256,uint256) returns (uint256)"];
+
+function formatToken(amount: ethers.BigNumber, decimals: number): string {
+  return ethers.utils.formatUnits(amount, decimals);
+}
+
+function formatBalanceShort(balance: string): string {
+  const num = parseFloat(balance);
+  if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+  if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+  return num.toFixed(2);
+}
+
+function App() {
+  const [account, setAccount] = useState<string>('');
+  const [fromToken, setFromToken] = useState<'TKA' | 'TKB'>('TKB');
+  const [toToken, setToToken] = useState<'TKA' | 'TKB'>('TKA');
+  const [amount, setAmount] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [txStatus, setTxStatus] = useState<string>('');
+  const [balance, setBalance] = useState({ TKA: ethers.BigNumber.from(0), TKB: ethers.BigNumber.from(0) });
+  const [reserves, setReserves] = useState({ TKA: ethers.BigNumber.from(0), TKB: ethers.BigNumber.from(0) });
+  const [reserveMapping, setReserveMapping] = useState<{ token0: string; token1: string } | null>(null);
+  const [needsApproval, setNeedsApproval] = useState(false);
+  const [tokenDecimals, setTokenDecimals] = useState({ TKA: 18, TKB: 18 });
+  const [refreshing, setRefreshing] = useState(false);
+  const [slippage] = useState(0.5);
+
+  const provider = useMemo(() => new ethers.providers.JsonRpcProvider(RPC_URL), []);
+
+  const fetchToken0Token1 = useCallback(async () => {
+    const pool = new ethers.Contract(CONTRACTS.POOL, ["function token0() view returns (address)", "function token1() view returns (address)"], provider);
+    const token0 = await pool.token0();
+    const token1 = await pool.token1();
+    const mapping = { token0, token1 };
+    setReserveMapping(mapping);
+    return mapping;
+  }, [provider]);
+
+  const fetchReserves = useCallback(async () => {
+    try {
+      const pool = new ethers.Contract(CONTRACTS.POOL, [
+        "function getReserves() view returns (uint112, uint112, uint32)"
+      ], provider);
+      const [reserve0, reserve1] = await pool.getReserves();
+      
+      let mapping = reserveMapping;
+      if (!mapping) {
+        mapping = await fetchToken0Token1();
+      }
+      
+      if (mapping) {
+        const isTKA0 = mapping.token0.toLowerCase() === CONTRACTS.TKA.toLowerCase();
+        setReserves({
+          TKA: isTKA0 ? reserve0 : reserve1,
+          TKB: isTKA0 ? reserve1 : reserve0
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch reserves:", err);
+    }
+  }, [provider, reserveMapping, fetchToken0Token1]);
+
+  const fetchDecimals = useCallback(async () => {
+    try {
+      const tkaContract = new ethers.Contract(CONTRACTS.TKA, ERC20_ABI, provider);
+      const tkbContract = new ethers.Contract(CONTRACTS.TKB, ERC20_ABI, provider);
+      const tkaDecimals = await tkaContract.decimals();
+      const tkbDecimals = await tkbContract.decimals();
+      setTokenDecimals({ TKA: tkaDecimals, TKB: tkbDecimals });
+    } catch (err) {
+      console.error("Failed to fetch decimals:", err);
+    }
+  }, [provider]);
+
+  const fetchBalances = useCallback(async (address: string) => {
+    try {
+      const tkaContract = new ethers.Contract(CONTRACTS.TKA, ERC20_ABI, provider);
+      const tkbContract = new ethers.Contract(CONTRACTS.TKB, ERC20_ABI, provider);
+      const [tkaBalance, tkbBalance] = await Promise.all([
+        tkaContract.balanceOf(address),
+        tkbContract.balanceOf(address)
+      ]);
+      setBalance({ TKA: tkaBalance, TKB: tkbBalance });
+    } catch (err) {
+      console.error("Failed to fetch balances:", err);
+    }
+  }, [provider]);
+
+  const checkAllowance = useCallback(async (address: string) => {
+    if (!amount || parseFloat(amount) === 0) return;
+    
+    try {
+      const tokenAddr = fromToken === 'TKA' ? CONTRACTS.TKA : CONTRACTS.TKB;
+      const tokenContract = new ethers.Contract(tokenAddr, ERC20_ABI, provider);
+      const allowance = await tokenContract.allowance(address, CONTRACTS.ROUTER);
+      const amountWei = ethers.utils.parseUnits(amount, tokenDecimals[fromToken]);
+      setNeedsApproval(allowance.lt(amountWei));
+    } catch (err) {
+      console.error("Failed to check allowance:", err);
+    }
+  }, [amount, fromToken, provider, tokenDecimals]);
+
+  const handleApprove = async () => {
+    if (!account) return;
+    
+    setLoading(true);
+    try {
+      const signer = provider.getSigner(account);
+      const tokenAddr = fromToken === 'TKA' ? CONTRACTS.TKA : CONTRACTS.TKB;
+      const tokenContract = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
+      const amountWei = ethers.utils.parseUnits(amount, tokenDecimals[fromToken]);
+      const tx = await tokenContract.approve(CONTRACTS.ROUTER, amountWei);
+      setTxStatus("Approving...");
+      await tx.wait();
+      setTxStatus("Approved!");
+      setNeedsApproval(false);
+      setTimeout(() => setTxStatus(''), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setTxStatus(`Approval failed: ${err.message?.slice(0, 50)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateExpectedOutput = useCallback((amountIn: ethers.BigNumber): ethers.BigNumber => {
+    const reserveIn = fromToken === 'TKA' ? reserves.TKA : reserves.TKB;
+    const reserveOut = fromToken === 'TKA' ? reserves.TKB : reserves.TKA;
+    
+    if (reserveIn.isZero() || reserveOut.isZero()) return ethers.BigNumber.from(0);
+    
+    const amountInWithFee = amountIn.mul(FEE_DENOM - FEE);
+    const numerator = amountInWithFee.mul(reserveOut);
+    const denominator = reserveIn.mul(FEE_DENOM).add(amountInWithFee);
+    return numerator.div(denominator);
+  }, [fromToken, reserves]);
+
+  const handleSwap = async () => {
+    if (!account || !amount || parseFloat(amount) === 0) return;
+    
+    setLoading(true);
+    setTxStatus("Processing swap...");
+    
+    try {
+      const router = new ethers.Contract(CONTRACTS.ROUTER, ROUTER_ABI, provider.getSigner(account));
+      const amountIn = ethers.utils.parseUnits(amount, tokenDecimals[fromToken]);
+      
+      const expectedOut = calculateExpectedOutput(amountIn);
+      const slippageBps = Math.round(slippage * 100);
+      const minOut = expectedOut.mul(10000 - slippageBps).div(10000);
+      
+      const tx = await router.swap(
+        fromToken === 'TKA' ? CONTRACTS.TKA : CONTRACTS.TKB,
+        toToken === 'TKA' ? CONTRACTS.TKA : CONTRACTS.TKB,
+        amountIn,
+        minOut,
+        Math.floor(Date.now() / 1000) + 1200
+      );
+      
+      setTxStatus(`Swap submitted: ${tx.hash.slice(0, 10)}...`);
+      await tx.wait();
+      setTxStatus("Swap complete!");
+      
+      await fetchBalances(account);
+      await fetchReserves();
+      setAmount('');
+      
+      setTimeout(() => setTxStatus(''), 5000);
+    } catch (err: any) {
+      console.error(err);
+      setTxStatus(`Swap failed: ${err.message?.slice(0, 50)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getExchangeRate = useCallback((): string => {
+    if (reserves.TKA.isZero() || reserves.TKB.isZero()) return "0";
+    const rate = fromToken === 'TKA' 
+      ? reserves.TKB.mul(ethers.utils.parseEther("1")).div(reserves.TKA)
+      : reserves.TKA.mul(ethers.utils.parseEther("1")).div(reserves.TKB);
+    return parseFloat(ethers.utils.formatEther(rate)).toFixed(6);
+  }, [fromToken, reserves]);
+
+  const setMaxAmount = () => {
+    const maxBalance = fromToken === 'TKA' ? balance.TKA : balance.TKB;
+    setAmount(formatToken(maxBalance, tokenDecimals[fromToken]));
+  };
+
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      alert("Please install MetaMask");
+      return;
+    }
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      setAccount(accounts[0]);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (account) {
+      fetchBalances(account);
+      checkAllowance(account);
+    }
+    fetchReserves();
+    fetchDecimals();
+    fetchToken0Token1();
+  }, [account, fetchBalances, fetchReserves, fetchDecimals, checkAllowance, fetchToken0Token1]);
+
+  const refreshAll = async () => {
+    setRefreshing(true);
+    try {
+      if (account) await fetchBalances(account);
+      await fetchReserves();
+      if (account && amount) await checkAllowance(account);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const amountInWei = useMemo(() => {
+    if (!amount || parseFloat(amount) === 0) return ethers.BigNumber.from(0);
+    return ethers.utils.parseUnits(amount, tokenDecimals[fromToken]);
+  }, [amount, fromToken, tokenDecimals]);
+
+  const expectedOutput = useMemo(() => {
+    if (amountInWei.isZero()) return "0";
+    const output = calculateExpectedOutput(amountInWei);
+    return parseFloat(formatToken(output, tokenDecimals[toToken])).toFixed(6);
+  }, [amountInWei, calculateExpectedOutput, tokenDecimals, toToken]);
+
+  const handleReverseTokens = () => {
+    setFromToken(toToken);
+    setToToken(fromToken);
+    setAmount('');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900">
+      <div className="container mx-auto px-4 py-8 max-w-md">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-white">TEFA DEX</h1>
+            <div className="flex gap-2">
+              <button onClick={refreshAll} disabled={refreshing} className="p-2 hover:bg-white/10 rounded-lg transition">
+                <RefreshCw className={`w-5 h-5 text-white ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <button onClick={connectWallet} 
+                      className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-500 px-4 py-2 rounded-xl hover:opacity-90 transition text-white">
+                <Wallet className="w-4 h-4" />
+                {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : 'Connect'}
+              </button>
+            </div>
+          </div>
+
+          {/* FROM SECTION - FIXED */}
+          <div className="bg-black/30 rounded-xl p-4 mb-2">
+            <div className="flex justify-between text-white/60 text-sm mb-2">
+              <span>From</span>
+              <button onClick={setMaxAmount} className="text-xs text-blue-400 hover:text-blue-300 transition">
+                Balance: {formatBalanceShort(formatToken(fromToken === 'TKA' ? balance.TKA : balance.TKB, tokenDecimals[fromToken]))}
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setFromToken(fromToken === 'TKA' ? 'TKB' : 'TKA')}
+                className="bg-white/10 rounded-xl px-4 py-2 whitespace-nowrap hover:bg-white/20 transition text-white"
+              >
+                {fromToken === 'TKA' ? '⚡ TKA' : '💎 TKB'}
+              </button>
+              <div className="flex-1 min-w-0">
+                <input 
+                  type="number" 
+                  value={amount} 
+                  onChange={(e) => setAmount(e.target.value)} 
+                  placeholder="0.0" 
+                  className="w-full bg-transparent text-3xl text-right outline-none text-white placeholder-white/30"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SWAP ARROW */}
+          <div className="flex justify-center" style={{ margin: '-0.75rem 0' }}>
+            <button 
+              onClick={handleReverseTokens}
+              className="bg-white/10 backdrop-blur rounded-full p-2 hover:bg-white/20 transition border border-white/20"
+            >
+              <ArrowDownUp className="w-5 h-5 text-white" />
+            </button>
+          </div>
+
+          {/* TO SECTION - FIXED */}
+          <div className="bg-black/30 rounded-xl p-4 mt-2">
+            <div className="text-white/60 text-sm mb-2">To (estimated)</div>
+            <div className="flex items-center gap-3">
+              <button 
+                disabled
+                className="bg-white/10 rounded-xl px-4 py-2 whitespace-nowrap opacity-70 text-white"
+              >
+                {toToken === 'TKA' ? '⚡ TKA' : '💎 TKB'}
+              </button>
+              <div className="flex-1 min-w-0">
+                <input 
+                  type="text" 
+                  value={expectedOutput}
+                  disabled 
+                  className="w-full bg-transparent text-3xl text-right outline-none text-white/70"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* RATE */}
+          <div className="text-white/60 text-sm text-center mt-4">
+            1 {fromToken} = {getExchangeRate()} {toToken}
+          </div>
+
+          {/* SWAP BUTTON */}
+          {needsApproval && amount && parseFloat(amount) > 0 ? (
+            <button onClick={handleApprove} disabled={loading}
+                    className="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 rounded-xl transition disabled:opacity-50">
+              {loading ? 'Approving...' : `Approve ${fromToken}`}
+            </button>
+          ) : (
+            <button onClick={handleSwap} disabled={loading || !amount || parseFloat(amount) === 0 || !account}
+                    className="w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:opacity-90 text-white font-bold py-3 rounded-xl transition disabled:opacity-50">
+              {!account ? 'Connect Wallet' : loading ? 'Processing...' : `Swap ${fromToken} → ${toToken}`}
+            </button>
+          )}
+
+          {/* STATUS */}
+          {txStatus && (
+            <div className="mt-4 text-center text-sm text-white/80 bg-white/10 rounded-lg p-2">
+              {txStatus}
+            </div>
+          )}
+
+          {/* FOOTER */}
+          <div className="mt-6 pt-4 border-t border-white/20">
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div>
+                <div className="text-white/40">TKA RESERVE</div>
+                <div className="font-mono text-white/80">
+                  {formatBalanceShort(formatToken(reserves.TKA, tokenDecimals.TKA))}
+                </div>
+              </div>
+              <div>
+                <div className="text-white/40">TKB RESERVE</div>
+                <div className="font-mono text-white/80">
+                  {formatBalanceShort(formatToken(reserves.TKB, tokenDecimals.TKB))}
+                </div>
+              </div>
+              <div>
+                <div className="text-white/40">FEE</div>
+                <div className="font-mono text-white/80">0.3%</div>
+              </div>
+            </div>
+            <div className="text-center text-xs text-white/30 mt-4">
+              Gasless • Powered by EIP-2771 • 0.3% fee • Sepolia
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;

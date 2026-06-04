@@ -1,0 +1,23 @@
+const PRIVATE_KEY = "0xc4fa308df2fe8baf409ac497723f15d4f94605acb162e979664bd7154a35965f";
+
+const config = {
+  solidity: {
+    version: "0.8.24",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
+  networks: {
+    sepolia: {
+      type: "http",
+      url: "https://sepolia.infura.io/v3/7cc54e6c6a2146b1963a922ab3ce5b0c",
+      accounts: [PRIVATE_KEY],
+      chainId: 11155111,
+    },
+  },
+};
+
+module.exports = config;
